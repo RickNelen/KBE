@@ -1,9 +1,9 @@
 
-from pav_classes import SquareBox
+from pav_classes.fuselage import Fuselage
 
 
 if __name__ == '__main__':
     from parapy.gui import display
 
-    obj = SquareBox(width=5)
+    obj = Fuselage(width=2)
     display(obj)
