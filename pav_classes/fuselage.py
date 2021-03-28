@@ -20,7 +20,6 @@ class Fuselage(LoftedShell):
     # Geometric inputs in [m]
     width = Input(2)
     cabin_length = Input(3)
-    height = Input(2)
 
     # Geometric inputs relative to the maximum length:
     widest_point = Input(0.4)
@@ -39,6 +38,11 @@ class Fuselage(LoftedShell):
     # Geometric inputs relative to the maximum width
     nose_radius_width = Input(default=nose_radius_height)
     tail_radius_width = Input(default=tail_radius_height)
+
+    # Define the height of the cabin
+    @Attribute
+    def height(self):
+        return self.width if self.width >= 1.5 else 1.5
 
     # Define the actual length of the nose
     @Attribute
@@ -95,7 +99,7 @@ class Fuselage(LoftedShell):
         # Define the shape of the central part along the top at the centre
         cabin = [self.height / 2 for i in self.relative_locations if
                  self.relative_nose_length < i < (
-                             1 - self.relative_tail_length)]
+                         1 - self.relative_tail_length)]
         # Combine the three sections into one list
         return nose + cabin + tail
 
@@ -118,7 +122,7 @@ class Fuselage(LoftedShell):
         # Define the shape of the central part along the bottom at the centre
         cabin = [-self.height / 2 for i in self.relative_locations if
                  self.relative_nose_length < i < (
-                             1 - self.relative_tail_length)]
+                         1 - self.relative_tail_length)]
         # Combine the three sections into one list
         return nose + cabin + tail
 
@@ -141,7 +145,7 @@ class Fuselage(LoftedShell):
         # Define the shape of the central part along the top at the centre
         cabin = [self.width / 2 for i in self.relative_locations if
                  self.relative_nose_length < i < (
-                             1 - self.relative_tail_length)]
+                         1 - self.relative_tail_length)]
         # Combine the three sections into one list
         return nose + cabin + tail
 
@@ -156,19 +160,6 @@ class Fuselage(LoftedShell):
                                  points=[Point(x=self.x_locations[
                                      child.index],
                                                y=0,
-                                               z=self.bottom_locations[
-                                                   child.index]),
-                                         Point(x=self.x_locations[
-                                             child.index],
-                                               y=self.side_locations[
-                                                   child.index],
-                                               z=(self.top_locations[
-                                                      child.index]
-                                                  + self.bottom_locations[
-                                                      child.index]) / 2),
-                                         Point(x=self.x_locations[
-                                             child.index],
-                                               y=0,
                                                z=self.top_locations[
                                                    child.index]),
                                          Point(x=self.x_locations[
@@ -177,13 +168,30 @@ class Fuselage(LoftedShell):
                                                    child.index],
                                                z=(self.top_locations[
                                                       child.index]
-                                                  + self.bottom_locations[
-                                                      child.index]) / 2),
+                                                  - self.bottom_locations[
+                                                      child.index]) * 1 / 3
+                                                 + self.bottom_locations[
+                                                     child.index]),
                                          Point(x=self.x_locations[
                                              child.index],
                                                y=0,
                                                z=self.bottom_locations[
+                                                   child.index]),
+                                         Point(x=self.x_locations[
+                                             child.index],
+                                               y=self.side_locations[
+                                                   child.index],
+                                               z=(self.top_locations[
+                                                      child.index]
+                                                  - self.bottom_locations[
+                                                      child.index]) * 1 / 3
+                                                 + self.bottom_locations[
+                                                     child.index]),
+                                         Point(x=self.x_locations[
+                                             child.index],
+                                               y=0,
+                                               z=self.top_locations[
                                                    child.index])],
-                                 tangents=[Vector(0, 1, 0), Vector(0, 0, 1),
-                                           Vector(0, -1, 0), Vector(0, 0, -1),
-                                           Vector(0, 1, 0)])
+                                 tangents=[Vector(0, -1, 0), Vector(0, 0, -1),
+                                           Vector(0, 1, 0), Vector(0, 0, 1),
+                                           Vector(0, -1, 0)])
