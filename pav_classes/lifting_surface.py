@@ -25,23 +25,31 @@ class LiftingSurface(GeomBase):
     thickness_factor_root = Input(1.)
     thickness_factor_tip = Input(1.)
 
+    # Geometric angles
     sweep = Input(20)
     incidence_angle = Input(2)
     twist = Input(-5)
     dihedral = Input(0)
 
+    # Catch whether the inputted span is actually the semi-span or the
+    # complete span
     @Input
     def semi_span(self):
-        # Catch whether the inputted span is actually the semi-span or the
-        # complete span
         return (self.span / 2. if self.is_mirrored == True
                 else self.span)
 
+    # Adjust the span fractions of the profiles if preferred
     @Input
     def span_fraction_of_profiles(self):
         return [1. / (self.number_of_profiles - 1) * index for index in
                 range(self.number_of_profiles)]
 
+    # Adjust the chord length to generate non-trapezoidal wings
+    @Input
+    def chord_factor(self):
+        return [1] * self.number_of_profiles
+
+    # Compute surface area from span and aspect ratio
     @Attribute
     def surface_area(self):
         return self.span ** 2 / self.aspect_ratio
@@ -54,11 +62,14 @@ class LiftingSurface(GeomBase):
     def tip_chord(self):
         return self.root_chord * self.taper_ratio
 
+    # Compute the 'regular' chord lengths of a trapezoidal wing based on
+    # span-wise location
     @Attribute
     def profile_chords(self):
         return [self.root_chord - (self.root_chord - self.tip_chord) * eta for
                 eta in self.span_fraction_of_profiles]
 
+    # Interpolate thickness factors at root and tip for all sections
     @Attribute
     def profile_thickness_factor(self):
         return [self.thickness_factor_root - (
@@ -84,36 +95,40 @@ class LiftingSurface(GeomBase):
     def profiles(self):
         return Airfoil(quantify=self.number_of_profiles,
                        airfoil_name=self.profile_airfoils[child.index],
-                       chord=self.profile_chords[child.index],
+                       # Provide chord with scaling factor if required
+                       chord=self.profile_chords[child.index] *
+                             self.chord_factor[child.index],
                        thickness_factor=self.profile_thickness_factor[
                            child.index],
-                       position=rotate(translate(self.position,
-                                                 # Translation in longitudinal
-                                                 # direction
-                                                 'x',
-                                                 self.span_fraction_of_profiles[
-                                                     child.index] *
-                                                 self.semi_span
-                                                 * tan(radians(self.sweep)),
-                                                 # Translation in span-wise
-                                                 # direction
-                                                 'y',
-                                                 self.span_fraction_of_profiles[
-                                                     child.index] *
-                                                 self.semi_span,
-                                                 'z',
-                                                 # Vertical translation
-                                                 self.span_fraction_of_profiles[
-                                                     child.index] *
-                                                 self.semi_span
-                                                 * tan(
-                                                     radians(self.dihedral))),
-                                       # Rotate to account for twist
-                                       'y',
-                                       radians(self.incidence_angle +
-                                               self.span_fraction_of_profiles[
-                                                   child.index] *
-                                               self.twist)))
+                       position=translate(
+                           rotate(self.position,
+                                  # Rotate to account for twist
+                                  'y',
+                                  radians(self.incidence_angle +
+                                          self.span_fraction_of_profiles[
+                                              child.index] *
+                                          self.twist)),
+                           # Translation in longitudinal
+                           # direction
+                           'x',
+                           self.span_fraction_of_profiles[
+                               child.index] *
+                           self.semi_span
+                           * tan(radians(self.sweep)),
+                           # Translation in span-wise
+                           # direction
+                           'y',
+                           self.span_fraction_of_profiles[
+                               child.index] *
+                           self.semi_span,
+                           'z',
+                           # Vertical translation
+                           self.span_fraction_of_profiles[
+                               child.index] *
+                           self.semi_span
+                           * tan(
+                               radians(self.dihedral)))
+                       )
 
     @Part
     def surface(self):
@@ -123,7 +138,7 @@ class LiftingSurface(GeomBase):
 
     @Part
     def mirrored(self):
-        return MirroredSurface(quantify=self.number_of_profiles-1,
+        return MirroredSurface(quantify=self.number_of_profiles - 1,
                                surface_in=
                                self.surface.faces[child.index],
                                reference_point=self.position.point,
