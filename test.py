@@ -7,6 +7,6 @@ if __name__ == '__main__':
 
     obj = Airfoil(airfoil_name=45015,
                   chord=4)
-    wing = LiftingSurface()
+    wing = LiftingSurface(name='right_wing')
     # display([obj, wing])
     display(wing)
