@@ -5,9 +5,10 @@ from kbeutils.geom import *
 from .airfoil import Airfoil
 
 
-class LiftingSurface(LoftedSolid):  # note use of loftedSolid as superclass
-    airfoil_root = Input("whitcomb")
-    airfoil_tip = Input("simm_airfoil")  #: :type: string
+class LiftingSurface(GeomBase):  # note use of loftedSolid as superclass
+    # airfoil_root = Input("whitcomb")
+    # airfoil_tip = Input("simm_airfoil")  #: :type: string
+    airfoils = Input(['4415', 'whitcomb'])
 
     w_c_root = Input(6.)
     w_c_tip = Input(2.3)
@@ -26,24 +27,20 @@ class LiftingSurface(LoftedSolid):  # note use of loftedSolid as superclass
     s_c_fraction1 = Input(0.85)  # movable front spar position, as % of chord
     s_c_fraction2 = Input(0.9)  # movable back spar position, as % of chord
 
-    @Attribute  # required input for the superclass LoftedSolid
+    #@Attribute  # required input for the superclass LoftedSolid
+    #def profiles(self):
+    #    return [self.root_airfoil, self.tip_airfoil]
+
+    @Part
     def profiles(self):
-        return [self.root_airfoil, self.tip_airfoil]
-
-    @Part
-    def root_airfoil(self):
-        return Airfoil(airfoil_name=self.airfoil_root,
-                       chord=5.)
-
-    @Part
-    def tip_airfoil(self):
-        return Airfoil(airfoil_name=self.airfoil_tip,
-                       chord=2.,
+        return Airfoil(quantify=len(self.airfoils),
+                       airfoil_name=self.airfoils[child.index],
+                       chord=2+child.index,
                        position=translate(self.position,
-                                          x=self.w_semi_span *
-                                            tan(radians(self.sweep)),
-                                          y=self.w_semi_span))
+                                          'y', 5*child.index))
 
-    #@Part
-    #def lofted_surf(self):
-    #    return LoftedSurface(profiles=self.profiles)
+    @Part
+    def surface(self):
+        return LoftedShell(profiles=[profile.curve for profile in
+                                     self.profiles],
+                           ruled=True)
