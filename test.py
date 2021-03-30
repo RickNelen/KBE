@@ -16,7 +16,7 @@ if __name__ == '__main__':
               quality_level=2,
               wheels=False,
               cruise_velocity=300,
-              primary_colour='white',
+              primary_colour='green',
               secondary_colour='red',
               name='PAV')
 

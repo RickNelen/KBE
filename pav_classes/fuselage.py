@@ -5,7 +5,7 @@ from math import *
 import numpy as np
 
 
-class Fuselage(LoftedShell):
+class Fuselage(LoftedSurface):
     # The origin of the coordinate system is the intersection of the centre
     # line of the fuselage with the most forward plane of the fuselage;
     # hence, the nose can be positioned below or above the origin.

@@ -166,7 +166,7 @@ class PAV(GeomBase):
 
     @Attribute
     def wing_location(self):
-        length_ratio = 0.4
+        length_ratio = 0.3
         height_ratio = 0.8
         return self.position.translate('x', length_ratio *
                                        self.fuselage_length,
@@ -205,8 +205,25 @@ class PAV(GeomBase):
                               position=self.position.translate('x',
                                                                self.fuselage_length*0.8,
                                                                'z',
-                                                               -0.4*self.cabin_height),
+                                                               0.3*self.cabin_height),
                               color=self.secondary_colour)
+
+    @Part
+    def vertical_tail(self):
+        return LiftingSurface(name='vertical_tail',
+                              number_of_profiles=2,
+                              airfoils=['0012', '0012'],
+                              is_mirrored=False,
+                              span=self.wing_span / 8,
+                              aspect_ratio=self.wing_aspect_ratio/4,
+                              taper_ratio=0.4,
+                              sweep=self.wing_sweep + 20,
+                              incidence_angle=0,
+                              twist=0,
+                              dihedral=0,
+                              position=rotate90(
+                                  self.horizontal_tail.position, 'x'),
+                              color=self.primary_colour)
 
     @Part
     def fuselage(self):
@@ -222,6 +239,6 @@ class PAV(GeomBase):
                         nose_radius_height=0.1,
                         tail_radius_height=0.05,
                         nose_height=-0.2,
-                        tail_height=0.4,
+                        tail_height=0.3,
                         color=self.primary_colour)
 

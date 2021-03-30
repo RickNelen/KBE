@@ -128,7 +128,7 @@ class LiftingSurface(GeomBase):
 
     @Part
     def surface(self):
-        return LoftedShell(profiles=[profile.curve for profile in
+        return LoftedSolid(profiles=[profile.curve for profile in
                                      self.profiles],
                            ruled=True)
 
