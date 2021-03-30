@@ -77,6 +77,29 @@ class LiftingSurface(GeomBase):
                 for eta in self.span_fraction_of_profiles]
 
     @Attribute
+    def profile_locations(self):
+        # Define the twist angle per section
+        twist = [radians(self.incidence_angle +
+                         self.span_fraction_of_profiles[index] * self.twist)
+                 for index in range(len(self.span_fraction_of_profiles))]
+        sweep = radians(self.sweep)
+        dihedral = radians(self.dihedral)
+        # Position each section
+        return [rotate(translate(self.position,
+                                 # Translate in the longitudinal direction
+                                 'x', self.span_fraction_of_profiles[index]
+                                 * self.semi_span * tan(sweep),
+                                 # Translate in the span-wise direction
+                                 'y', self.span_fraction_of_profiles[index]
+                                 * self.semi_span,
+                                 # Translate in the vertical direction
+                                 'z', self.span_fraction_of_profiles[index]
+                                 * tan(dihedral)),
+                       # Then rotate the section
+                       'y', twist[index])
+                for index in range(len(self.span_fraction_of_profiles))]
+
+    @Attribute
     def profile_airfoils(self):
         # The total number of profiles that should be defined
         numbers = [number for number in range(self.number_of_profiles)]
@@ -100,34 +123,7 @@ class LiftingSurface(GeomBase):
                              self.chord_factor[child.index],
                        thickness_factor=self.profile_thickness_factor[
                            child.index],
-                       position=translate(
-                           rotate(self.position,
-                                  # Rotate to account for twist
-                                  'y',
-                                  radians(self.incidence_angle +
-                                          self.span_fraction_of_profiles[
-                                              child.index] *
-                                          self.twist)),
-                           # Translation in longitudinal
-                           # direction
-                           'x',
-                           self.span_fraction_of_profiles[
-                               child.index] *
-                           self.semi_span
-                           * tan(radians(self.sweep)),
-                           # Translation in span-wise
-                           # direction
-                           'y',
-                           self.span_fraction_of_profiles[
-                               child.index] *
-                           self.semi_span,
-                           'z',
-                           # Vertical translation
-                           self.span_fraction_of_profiles[
-                               child.index] *
-                           self.semi_span
-                           * tan(
-                               radians(self.dihedral)))
+                       position=self.profile_locations[child.index]
                        )
 
     @Part

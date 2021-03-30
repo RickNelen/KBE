@@ -10,6 +10,9 @@ class Fuselage(LoftedShell):
     # line of the fuselage with the most forward plane of the fuselage;
     # hence, the nose can be positioned below or above the origin.
 
+    # Name the instance of the fuselage
+    name = Input()
+
     # Number of stations at which profiles are generated
     number_of_positions = Input(20)
 
@@ -19,11 +22,8 @@ class Fuselage(LoftedShell):
 
     # Geometric inputs in [m]
     width = Input(2)
+    height = Input(1.5)
     cabin_length = Input(3)
-
-    # Geometric inputs relative to the maximum length:
-    widest_point = Input(0.4)
-    highest_point = Input(0.5)
 
     # Geometric inputs relative to the maximum height; note that the sum of
     # half the radius and the height should not exceed [-0.5, 0.5] if you
@@ -38,11 +38,6 @@ class Fuselage(LoftedShell):
     # Geometric inputs relative to the maximum width
     nose_radius_width = Input(default=nose_radius_height)
     tail_radius_width = Input(default=tail_radius_height)
-
-    # Define the height of the cabin
-    @Attribute
-    def height(self):
-        return self.width if self.width >= 1.5 else 1.5
 
     # Define the actual length of the nose
     @Attribute
