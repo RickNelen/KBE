@@ -61,9 +61,12 @@ class PAV(GeomBase):
         return 0.9 if self.quality_level == 2 else 0.6
 
     @Attribute
+    def number_of_rows(self):
+        return ceil(self.number_of_passengers / self.number_of_seats_abreast)
+
+    @Attribute
     def cabin_length(self):
-        return (ceil(self.number_of_passengers / self.number_of_seats_abreast)
-                * self.seat_pitch)
+        return self.number_of_rows * self.seat_pitch
 
     @Attribute
     def fuselage_length(self):
