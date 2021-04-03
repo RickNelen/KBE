@@ -21,4 +21,5 @@ if __name__ == '__main__':
               name='PAV')
 
     display(pav)
+    pav.step_parts.write()
     #display(prop)

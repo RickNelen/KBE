@@ -1,11 +1,19 @@
+import os.path
+
 from math import *
 from parapy.geom import *
 from parapy.core import *
+from parapy.exchange import STEPWriter
 
 from .fuselage import Fuselage
 from .lifting_surface import LiftingSurface
 from .airfoil import Airfoil
 from .propeller import Propeller
+
+_module_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                           os.pardir))
+OUTPUT_DIR = os.path.join(_module_dir, 'output_files', '')
+FILENAME = os.path.join(OUTPUT_DIR, 'pav_assembly.stp', '')
 
 
 class PAV(GeomBase):
@@ -52,6 +60,11 @@ class PAV(GeomBase):
     # -------------------------------------------------------------------------
     # Mostly fuselage related
     # -------------------------------------------------------------------------
+
+    @Attribute
+    def testing(self):
+        return str(OUTPUT_DIR)
+
     @Attribute
     def seat_pitch(self):
         return 1.5 if self.quality_level == 2 else 1
@@ -245,3 +258,11 @@ class PAV(GeomBase):
                         tail_height=0.3,
                         color=self.primary_colour)
 
+    # -------------------------------------------------------------------------
+    # STEP parts used for export
+    # -------------------------------------------------------------------------
+
+    @Part
+    def step_parts(self):
+        return STEPWriter(filename=FILENAME,
+                          trees=[self])
