@@ -26,6 +26,7 @@ FILENAME = os.path.join(OUTPUT_DIR, 'Invoice.pdf')
 count = 0
 with open(INPUT_FILE, encoding="Latin-1") as f:
     contents = f.read()
+    # This is the start of the usable part
     start = contents.find('Number of passengers')
     contents = contents[start:]
     print(contents)
