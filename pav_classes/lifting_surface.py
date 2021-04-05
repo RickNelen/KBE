@@ -2,6 +2,7 @@ from math import radians, tan
 from parapy.geom import *
 from parapy.core import *
 from kbeutils.geom import *
+import kbeutils.avl as avl
 from .airfoil import Airfoil
 
 
@@ -141,3 +142,15 @@ class LiftingSurface(GeomBase):
                                vector1=self.position.Vx,
                                vector2=self.position.Vz,
                                suppress=not self.is_mirrored)
+
+    @Part
+    def avl_surface(self):
+        return avl.Surface(name=self.name,
+                           n_chordwise=12,
+                           chord_spacing=avl.Spacing.cosine,
+                           n_spanwise=20,
+                           span_spacing=avl.Spacing.cosine,
+                           y_duplicate=self.position.point[1]
+                           if self.is_mirrored else None,
+                           sections=[section.avl_section for section in
+                                     self.profiles])

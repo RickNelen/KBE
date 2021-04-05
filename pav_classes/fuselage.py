@@ -225,6 +225,7 @@ class Fuselage(GeomBase):
     @Part
     def fuselage_surface(self):
         return RevolvedSurface(basis_curve=self.fuselage_curve,
+                               mesh_deflection=0.0001,
                                direction=Vector(1, 0, 0))
 
     # @Part

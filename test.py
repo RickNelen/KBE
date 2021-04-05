@@ -1,7 +1,7 @@
+import os.path
 from fpdf import FPDF
 from datetime import date
-import os.path
-from justifytext import justify
+import kbeutils.avl as avl
 
 from reportlab.lib.colors import blue
 from reportlab.lib.pagesizes import A4
@@ -13,11 +13,22 @@ from pav_classes.lifting_surface import LiftingSurface
 from pav_classes.airfoil import Airfoil
 from pav_classes.propeller import Propeller
 from pav_classes.pav import PAV
+from pav_classes.avl_configurator import AvlAnalysis
 
 _module_dir = os.path.abspath(os.path.dirname(__file__))
-OUTPUT_DIR = os.path.join(_module_dir, 'output_files', '')
 
+INPUT_DIR = os.path.join(_module_dir, 'input_files', '')
+INPUT_FILE = os.path.join(INPUT_DIR, 'Client_input.txt')
+
+OUTPUT_DIR = os.path.join(_module_dir, 'output_files', '')
 FILENAME = os.path.join(OUTPUT_DIR, 'Invoice.pdf')
+
+count = 0
+with open(INPUT_FILE, encoding="Latin-1") as f:
+    contents = f.read()
+    start = contents.find('Number of passengers')
+    contents = contents[start:]
+    print(contents)
 
 if __name__ == '__main__':
     from parapy.gui import display
@@ -34,10 +45,24 @@ if __name__ == '__main__':
               primary_colour='green',
               secondary_colour='red',
               name='PAV')
-#
-#     display(pav)
+
+    cases = [('fixed_aoa', {'alpha': 3}),
+             ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
+                                                  value='0.3',
+                                                  setting='CL')})]
+
+    analysis = AvlAnalysis(aircraft=pav,
+                           case_settings=cases)
+
+    # display(analysis)
+
+    # print(analysis.lift_over_drag)
+
 #     pav.step_parts.write()
 
+# -----------------------------------------------------------------------------
+# Get all the parameters to generate a pdf output
+# -----------------------------------------------------------------------------
 
 n_passengers = str(pav.number_of_passengers)
 baggage = format(65.4, '.2f')
@@ -216,5 +241,3 @@ pdf.price_values()
 pdf.signature_client()
 pdf.signature_pav()
 pdf.output(FILENAME)
-
-# display(prop)

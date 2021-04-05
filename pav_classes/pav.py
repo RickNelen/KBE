@@ -4,6 +4,7 @@ from math import *
 from parapy.geom import *
 from parapy.core import *
 from parapy.exchange import STEPWriter
+import kbeutils.avl as avl
 
 from .fuselage import Fuselage
 from .lifting_surface import LiftingSurface
@@ -189,11 +190,15 @@ class PAV(GeomBase):
                                        'z', (height_ratio - 0.5)
                                        * self.cabin_height)
 
+    @Attribute
+    def avl_surfaces(self):
+        return self.find_children(lambda o: isinstance(o, avl.Surface))
+
     @Part
     def main_wing(self):
         return LiftingSurface(name='main_wing',
                               number_of_profiles=4,
-                              airfoils=['34018', '33515', '43012', '43010'],
+                              airfoils=['34018', '34015', '43010', '43008'],
                               is_mirrored=True,
                               span=self.wing_span,
                               aspect_ratio=self.wing_aspect_ratio,
@@ -209,7 +214,7 @@ class PAV(GeomBase):
     def horizontal_tail(self):
         return LiftingSurface(name='horizontal_tail',
                               number_of_profiles=2,
-                              airfoils=['0018', '0012'],
+                              airfoils=['2218', '2212'],
                               is_mirrored=True,
                               span=self.wing_span/3,
                               aspect_ratio=self.wing_aspect_ratio,
@@ -257,6 +262,21 @@ class PAV(GeomBase):
                         nose_height=-0.2,
                         tail_height=0.3,
                         color=self.primary_colour)
+
+    # -------------------------------------------------------------------------
+    # AVL part for analysis
+    # -------------------------------------------------------------------------
+
+    @Part
+    def avl_configuration(self):
+        return avl.Configuration(name='pav',
+                                 reference_area=self.wing_area,
+                                 reference_span=self.wing_span,
+                                 reference_chord=1.2,
+                                 reference_point=self.main_wing.position.point,
+                                 surfaces=self.avl_surfaces,
+                                 mach=self.cruise_mach_number)
+    # ADJUST THE REFERENCE CHORD AND REFERENCE POINT!
 
     # -------------------------------------------------------------------------
     # STEP parts used for export

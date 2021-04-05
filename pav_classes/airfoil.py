@@ -1,6 +1,7 @@
 import os.path
 
 from kbeutils.geom import *
+import kbeutils.avl as avl
 from parapy.core import *
 from parapy.geom import *
 
@@ -68,3 +69,7 @@ class Airfoil(GeomBase):  # note the use of FittedCurve as superclass
                            # allow for multiple thickness airfoils
                            factor=(self.chord, 1,
                                    self.chord * self.thickness_factor))
+
+    @Part
+    def avl_section(self):
+        return avl.SectionFromCurve(curve_in=self.curve)

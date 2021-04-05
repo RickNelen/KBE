@@ -1,0 +1,14 @@
+# PAV Configurator: input file
+
+# Please specify how you would like your new PAV to perform. Please remember that your experience is our greatest good, but that we are no wizzards.
+ 
+Please adhere to the units given below. For quality level, provide '1' for economy class or '2' for business class. If you would like to have wheels mounted to the skids, please type 'yes' after Wheels. If not, please write 'no'. For the primary and secondary colours, please provide the name of the colour you wish.
+
+Number of passengers: 	5
+Range in km:		300
+Maximum span in m:		15
+Quality level: 1
+Wheels:		yes
+Cruise velocity in km/h:	400
+Primary colour:		yellow
+Secondary colour:	 blue
