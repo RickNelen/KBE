@@ -15,17 +15,17 @@ from parapy.geom import *
 from parapy.core import *
 
 
-class Skid(Box):
+class Wheelrod(Box):
 
 
 
     @Part
-    def skid(self):
-        return Box(0.10, 0.12, 6.0)
+    def wheelrod_profile(self):
+        return Box(0.04, 0.04, 0.20)
 
 
 
 if __name__ == '__main__':
     from parapy.gui import display
-    obj = Skid(label="skid", mesh_deflection=0.0001)
+    obj = Wheelrod(label="wheelrod", mesh_deflection=0.0001)
     display(obj)
