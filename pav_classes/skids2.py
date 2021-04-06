@@ -14,8 +14,8 @@
 from math import radians, tan
 from parapy.geom import *
 from parapy.core import *
-from .airfoil import Airfoil
-from ref_frame import Frame
+from airfoil import Airfoil
+# from ref_frame import Frame
 
 
 class Skidconnection(LoftedSolid):  # note use of loftedSolid as superclass
@@ -30,35 +30,36 @@ class Skidconnection(LoftedSolid):  # note use of loftedSolid as superclass
 
     @Attribute  # required input for the superclass LoftedSolid
     def profiles(self):
-        return self.skidc
+        return [self.root_airfoil, self.tip_airfoil]
 
-    @Part
-    def lifting_surf_frame(self):  # to visualize the given lifting surface reference frame
-        return Frame(pos=self.position,
-                     hidden=False)
+    # @Part
+    # def lifting_surf_frame(self):  # to visualize the given lifting surface reference frame
+    #     return Frame(pos=self.position,
+    #                  hidden=False)
 
     @Part
     def root_airfoil(self):  # root airfoil will receive self.position as default
         return Airfoil(airfoil_name=self.skidc,
                        chord=self.w_skidc,
-                       thickness_factor=self.t_factor,
+                       # thickness_factor=self.t_factor,
                        mesh_deflection=0.0001)
 
     @Part
     def tip_airfoil(self):
         return Airfoil(airfoil_name=self.skidc,
                        chord=self.w_skidc,
-                       thickness_factor=self.t_factor,
+                       # thickness_factor=self.t_factor,
                        position=translate(
                            rotate(self.position, "y", radians(self.twist)),  # apply twist angle
-                           "y", self.w_semi_span,
-                           "x", self.w_semi_span * tan(radians(self.sweep))),  # apply sweep
+                           "y", self.w_skidc_length,
+                           "x", self.w_skidc_length * tan(radians(self.sweep))),
+                       # apply sweep
                        mesh_deflection=0.0001)
 
-    @Part
-    def lofted_surf(self):
-        return LoftedSurface(profiles=self.profiles,
-                             hidden=not(__name__ == '__main__'))
+    # @Part
+    # def lofted_surf(self):
+    #     return LoftedSurface(profiles=self.profiles,
+    #                          hidden=not(__name__ == '__main__'))
 
 
 if __name__ == '__main__':

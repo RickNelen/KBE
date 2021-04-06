@@ -23,34 +23,30 @@ INPUT_FILE = os.path.join(INPUT_DIR, 'Client_input.txt')
 OUTPUT_DIR = os.path.join(_module_dir, 'output_files', '')
 FILENAME = os.path.join(OUTPUT_DIR, 'Invoice.pdf')
 
-
 # -----------------------------------------------------------------------------
 # Read the input file and obtain the preferred parameters
 # -----------------------------------------------------------------------------
 with open(INPUT_FILE, encoding="Latin-1") as f:
     contents = f.read()
+
     # This is the start of the usable part
     start = contents.find('Number of passengers')
-    contents = contents[start:]
-    print(contents)
-    numbers = []
-    for index, string in enumerate(contents):
-        if string.isdigit() and not contents[index - 1].isdigit():
-            start = index
-            while index < len(contents) and contents[index].isdigit():
-                index += 1
-            numbers.append(float(contents[start:index]))
-    print(numbers)
-    # Obtain the choice for wheels: yes or no
-    options = ['yes', 'Yes', 'no', 'No']
-    for text in options:
-        if contents.find(text) > 0:
-            wheels_index = contents.find(text)
-            print(text)
-            choice = (True if options[0] == text
-                      or options[1] == text else False)
+    contents = contents[start:].split()
 
-    print(choice)
+    # Obtain the parameters directly from the input file
+    passengers = int(float(contents[3]))
+    range_in_km = float(contents[7])
+    max_span = float(contents[12])
+    quality_choice = int(float(contents[15]))
+    cruise_speed = float(contents[22])
+    primary_colour_in = str(contents[25])
+    secondary_colour_in = str(contents[28])
+
+    options = ['yes', 'Yes', 'no', 'No']
+    # Return the choice True or False for wheels
+    wheels_choice = (True if contents[17] == options[0]
+                     or contents[17] == options[1] else False)
+
 
 # -----------------------------------------------------------------------------
 # Run the KBE app
@@ -62,14 +58,15 @@ if __name__ == '__main__':
     obj = Fuselage(color='blue')
     wing = LiftingSurface(name='right_wing')
     prop = Propeller(color='red')
-    pav = PAV(number_of_passengers=3,
-              range=400,
-              maximum_span=18,
-              quality_level=2,
-              wheels=choice,
-              cruise_velocity=300,
-              primary_colour='green',
-              secondary_colour='red',
+    pav = PAV(label='PAV',
+              number_of_passengers=passengers,
+              range=range_in_km,
+              maximum_span=max_span,
+              quality_level=quality_choice,
+              wheels=wheels_choice,
+              cruise_velocity=cruise_speed,
+              primary_colour=primary_colour_in,
+              secondary_colour=secondary_colour_in,
               name='PAV')
 
     cases = [('fixed_aoa', {'alpha': 3}),
@@ -80,7 +77,7 @@ if __name__ == '__main__':
     analysis = AvlAnalysis(aircraft=pav,
                            case_settings=cases)
 
-    # display(analysis)
+    display(prop)
 
     # print(analysis.lift_over_drag)
 
@@ -91,7 +88,7 @@ if __name__ == '__main__':
 # -----------------------------------------------------------------------------
 
 n_passengers = str(pav.number_of_passengers)
-baggage = format(65.4, '.2f')
+baggage = format(pav.number_of_passengers * pav.quality_level * 22, '.0f')
 range = format(pav.range, '.0f')
 velocity = format(pav.cruise_velocity, '.0f')
 quality = 'Economy' if pav.quality_level == 1 else 'Business'
