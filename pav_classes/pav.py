@@ -216,17 +216,17 @@ class PAV(GeomBase):
                               number_of_profiles=2,
                               airfoils=['2218', '2212'],
                               is_mirrored=True,
-                              span=self.wing_span/3,
+                              span=self.wing_span / 3,
                               aspect_ratio=self.wing_aspect_ratio,
                               taper_ratio=0.4,
-                              sweep=self.wing_sweep+5,
+                              sweep=self.wing_sweep + 5,
                               incidence_angle=0,
                               twist=0,
                               dihedral=3,
                               position=self.position.translate('x',
-                                                               self.fuselage_length*0.8,
+                                                               self.fuselage_length * 0.8,
                                                                'z',
-                                                               0.3*self.cabin_height),
+                                                               0.3 * self.cabin_height),
                               color=self.secondary_colour)
 
     @Part
@@ -236,7 +236,7 @@ class PAV(GeomBase):
                               airfoils=['0012', '0012'],
                               is_mirrored=False,
                               span=self.wing_span / 8,
-                              aspect_ratio=self.wing_aspect_ratio/4,
+                              aspect_ratio=self.wing_aspect_ratio / 4,
                               taper_ratio=0.4,
                               sweep=self.wing_sweep + 20,
                               incidence_angle=0,
@@ -263,6 +263,20 @@ class PAV(GeomBase):
                         tail_height=0.3,
                         color=self.primary_colour)
 
+    @Part
+    def left_propeller(self):
+        return Propeller(name='left_propeller',
+                         number_of_blades=4,
+                         aspect_ratio=3,
+                         ratio_hub_to_blade_radius=0.15,
+                         leading_edge_sweep=0,
+                         blade_setting_angle=40,
+                         blade_outwash=30,
+                         number_of_blade_sections=50,
+                         blade_thickness=60,
+                         position=rotate90(self.wing_location,
+                                           'y'))
+
     # -------------------------------------------------------------------------
     # AVL part for analysis
     # -------------------------------------------------------------------------
@@ -276,6 +290,7 @@ class PAV(GeomBase):
                                  reference_point=self.main_wing.position.point,
                                  surfaces=self.avl_surfaces,
                                  mach=self.cruise_mach_number)
+
     # ADJUST THE REFERENCE CHORD AND REFERENCE POINT!
 
     # -------------------------------------------------------------------------

@@ -5,21 +5,20 @@ from .lifting_surface import LiftingSurface
 
 
 class Propeller(GeomBase):
-    number_of_blades = Input(2)
+    name = Input()
+
+    number_of_blades = Input(6)
     blade_radius = Input(1.2)
-    aspect_ratio = Input(10)
-    blade_taper_ratio = Input(1)
-    thickness_at_root = Input(3.)
-    thickness_at_tip = Input(1.)
+    aspect_ratio = Input(3.)
+
     ratio_hub_to_blade_radius = Input(0.2)
 
     leading_edge_sweep = Input(0)
-    blade_setting_angle = Input(30)
-    blade_outwash = Input(20)
+    blade_setting_angle = Input(40)
+    blade_outwash = Input(30)
 
     number_of_blade_sections = Input(50)
-
-    blade_thickness = Input(40)
+    blade_thickness = Input(60)
 
     @Input
     def blade_profile(self):
@@ -69,9 +68,14 @@ class Propeller(GeomBase):
 
     @Part(in_tree=False)
     def hub_profile(self):
-        return InterpolatedCurve(points=[Point(x=0, y=self.hub_base_radius,
-                                               z=0), Point(x=0, y=0,
-                                                           z=self.hub_length)],
+        return InterpolatedCurve(points=[Point(x=self.position.x,
+                                               y=self.position.y
+                                               + self.hub_base_radius,
+                                               z=self.position.z),
+                                         Point(x=self.position.x,
+                                               y=self.position.y,
+                                               z=self.position.z
+                                               + self.hub_length)],
                                  tangents=[Vector(0, 0, 1), Vector(0, -1, 0)])
 
     @Part
@@ -89,16 +93,16 @@ class Propeller(GeomBase):
                               airfoils=self.blade_profile,
                               span=self.propeller_radius,
                               aspect_ratio=self.aspect_ratio,
-                              taper_ratio=self.blade_taper_ratio,
-                              thickness_factor_root=self.thickness_at_root,
-                              thickness_factor_tip=self.thickness_at_tip,
+                              taper_ratio=1,
+                              thickness_factor_root=1,
+                              thickness_factor_tip=1,
                               sweep=self.leading_edge_sweep,
                               incidence_angle=0,
                               twist=-self.blade_outwash,
                               dihedral=0,
                               position=
                               rotate(translate(self.position,
-                                               'z', 0.05),
+                                               'z', self.hub_length/3),
                                      'y', radians(self.blade_setting_angle)))
 
     @Part

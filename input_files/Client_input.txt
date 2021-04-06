@@ -11,4 +11,4 @@ Quality level: 2
 Wheels:				yes
 Cruise velocity in km/h:	400
 Primary colour:		yellow
-Secondary colour:	 black
+Secondary colour:	 red
