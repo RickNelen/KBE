@@ -195,13 +195,14 @@ class PAV(GeomBase):
     def propeller_locations(self):
         number_props = round(self.wing_area/3)
         loc = [1] * number_props
-        loc[0] = self.position.y if number_props % 2 != 0 else []
+        first = self.position.y if number_props % 2 != 0 else None
         symmetrical = loc[1:]
-        one_side = int(len(symmetrical) / 2)
-        pos = [self.wing_location.y + (0.3 + 0.7 * index / one_side)
+        one_side = ceil(len(symmetrical) / 2)
+        pos = [self.wing_location.y + (1 - 0.7 * index / one_side)
                * self.wing_span/2 for index in range(one_side)]
-        other_wing = [-pos[index] for index in range(one_side)]
-        return loc + pos + other_wing
+        other_wing = [-1 * pos[index] for index in range(one_side)]
+        return (first + pos + other_wing if number_props % 2 != 0
+                else pos + other_wing)
 
     @Attribute
     def avl_surfaces(self):
@@ -259,7 +260,7 @@ class PAV(GeomBase):
                                   self.horizontal_tail.position, 'x'),
                               color=self.primary_colour)
 
-    @Part
+    @Part(in_tree=True)
     def fuselage(self):
         return Fuselage(name='fuselage',
                         number_of_positions=50,
@@ -276,11 +277,11 @@ class PAV(GeomBase):
                         tail_height=0.3,
                         color=self.primary_colour)
 
-    @Part
+    @Part(in_tree=True)
     def cruise_propellers(self):
         return Propeller(name='cruise_propellers',
                          quantify=len(self.propeller_locations),
-                         number_of_blades=4,
+                         number_of_blades=6,
                          aspect_ratio=3,
                          ratio_hub_to_blade_radius=0.15,
                          leading_edge_sweep=0,
@@ -290,7 +291,7 @@ class PAV(GeomBase):
                          blade_thickness=60,
                          position=translate(rotate90(self.wing_location,
                                                      - self.position.Vy),
-                                            'z', -1.3,
+                                            'z', 0,
                                             'y', self.propeller_locations[
                                                 child.index]))
 

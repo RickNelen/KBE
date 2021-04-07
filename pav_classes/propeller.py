@@ -5,18 +5,24 @@ from .lifting_surface import LiftingSurface
 
 
 class Propeller(GeomBase):
+    # -------------------------------------------------------------------------
+    # INPUTS
+    # -------------------------------------------------------------------------
     name = Input()
 
-    number_of_blades = Input(6)
-    blade_radius = Input(1.2)
-    aspect_ratio = Input(3.)
-
+    # Inputs related to the hub
     ratio_hub_to_blade_radius = Input(0.2)
 
+    # Inputs related to the nacelle
+    nacelle_length = Input(1)
+
+    # Inputs related to the blades
+    number_of_blades = Input(6)
+    blade_radius = Input(1.)
+    aspect_ratio = Input(3.)
     leading_edge_sweep = Input(0)
     blade_setting_angle = Input(40)
     blade_outwash = Input(30)
-
     number_of_blade_sections = Input(50)
     blade_thickness = Input(60)
 
@@ -50,6 +56,10 @@ class Propeller(GeomBase):
                  for index in range(len(hub), self.number_of_blade_sections)]
         return hub + blade
 
+    # -------------------------------------------------------------------------
+    # ATTRIBUTES
+    # -------------------------------------------------------------------------
+
     @Attribute
     def angle_between_blades(self):
         return 2 * pi / self.number_of_blades
@@ -82,6 +92,23 @@ class Propeller(GeomBase):
         tip_tangent = - self.position.Vy
         return [base_tangent, tip_tangent]
 
+    @Attribute
+    def nacelle_locations(self):
+        basis_point = self.point_locations[0]
+        end_point = translate(self.position,
+                              self.position.Vz, - self.nacelle_length)
+        return [basis_point, end_point]
+
+    @Attribute
+    def nacelle_tangents(self):
+        basis_tangent = - self.point_tangents[0]
+        end_tangent = self.point_tangents[1]
+        return basis_tangent
+
+    # -------------------------------------------------------------------------
+    # PARTS
+    # -------------------------------------------------------------------------
+
     @Part(in_tree=False)
     def hub_profile(self):
         return InterpolatedCurve(points=self.point_locations,
@@ -89,10 +116,20 @@ class Propeller(GeomBase):
 
     @Part
     def hub_cone(self):
-        return RevolvedSurface(basis_curve=self.hub_profile,
-                               center=Point(self.position.x,
-                                            self.position.y,
-                                            self.position.z),
+        return RevolvedSurface(color='blue',
+                               basis_curve=self.hub_profile,
+                               center=self.position.point,
+                               direction=self.position.Vz)
+
+    @Part(in_tree=False)
+    def nacelle_profile(self):
+        return InterpolatedCurve(points=self.nacelle_locations,
+                                 initial_tangent=self.nacelle_tangents)
+
+    @Part
+    def nacelle(self):
+        return RevolvedSurface(basis_curve=self.nacelle_profile,
+                               center=self.position.point,
                                direction=self.position.Vz)
 
     @Part(in_tree=False)

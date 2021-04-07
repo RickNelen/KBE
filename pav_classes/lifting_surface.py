@@ -7,6 +7,10 @@ from .airfoil import Airfoil
 
 
 class LiftingSurface(GeomBase):
+    # -------------------------------------------------------------------------
+    # INPUTS
+    # -------------------------------------------------------------------------
+
     # Name the instance of the lifting surface
     name = Input()
 
@@ -27,9 +31,16 @@ class LiftingSurface(GeomBase):
     thickness_factor_tip = Input(1.)
 
     # Geometric angles
+    # The sweep is defined at the quarter chord point
     sweep = Input(20)
+    # The incidence angle is the angle between the fuselage longitudinal
+    # axis and the root chord line
     incidence_angle = Input(2)
+    # The twist shows the twist angle of the tip profile around the quarter
+    # chord point with respect to the root profile
     twist = Input(-5)
+    # The dihedral angle shows the angle of the quarter chord line with
+    # respect to the horizontal plane
     dihedral = Input(0)
 
     # Catch whether the inputted span is actually the semi-span or the
@@ -50,6 +61,17 @@ class LiftingSurface(GeomBase):
     def chord_factor(self):
         return [1] * self.number_of_profiles
 
+    # -------------------------------------------------------------------------
+    # ATTRIBUTES
+    # -------------------------------------------------------------------------
+
+    # Compute mean aerodynamic chord
+    @Attribute
+    def mean_aerodynamic_chord(self):
+        return (2. / 3 * self.root_chord
+                * (1 + self.taper_ratio + self.taper_ratio ** 2)
+                / (1 + self.taper_ratio))
+
     # Compute surface area from span and aspect ratio
     @Attribute
     def surface_area(self):
@@ -67,8 +89,8 @@ class LiftingSurface(GeomBase):
     # span-wise location
     @Attribute
     def profile_chords(self):
-        return [self.root_chord - (self.root_chord - self.tip_chord) * eta for
-                eta in self.span_fraction_of_profiles]
+        return [self.root_chord - (self.root_chord - self.tip_chord) * eta
+                for eta in self.span_fraction_of_profiles]
 
     # Interpolate thickness factors at root and tip for all sections
     @Attribute
@@ -83,25 +105,41 @@ class LiftingSurface(GeomBase):
         twist = [radians(self.incidence_angle +
                          self.span_fraction_of_profiles[index] * self.twist)
                  for index in range(len(self.span_fraction_of_profiles))]
+        # Convert the sweep angle to radians
         sweep = radians(self.sweep)
+        # Convert the dihedral angle to radians
         dihedral = radians(self.dihedral)
-        # Position each section
-        return [rotate(translate(self.position,
-                                 # Translate in the longitudinal direction
-                                 self.position.Vx,
-                                 self.span_fraction_of_profiles[index]
-                                 * self.semi_span * tan(sweep),
-                                 # Translate in the span-wise direction
-                                 self.position.Vy,
-                                 self.span_fraction_of_profiles[index]
-                                 * self.semi_span,
-                                 # Translate in the vertical direction
-                                 self.position.Vz,
-                                 self.span_fraction_of_profiles[index]
-                                 * tan(dihedral)),
-                       # Then rotate the section
-                       self.position.Vy, twist[index])
-                for index in range(len(self.span_fraction_of_profiles))]
+        # Determine the quarter chord length for each section
+        quarter_chord = [self.profile_chords[index]
+                         * self.chord_factor[index] / 4
+                         for index in
+                         range(len(self.span_fraction_of_profiles))]
+
+        # Provide the locations of the quarter chord points for all sections
+        ref_positions = [self.position.translate(
+            self.position.Vx,
+            # Translate in x direction
+            self.span_fraction_of_profiles[index] * self.semi_span
+            * tan(sweep),
+            # Translate in y direction
+            self.position.Vy, self.span_fraction_of_profiles[index]
+            * self.semi_span,
+            # Translate in z direction
+            self.position.Vz, self.span_fraction_of_profiles[index]
+            * tan(dihedral))
+            for index in range(len(self.span_fraction_of_profiles))]
+
+        # Position each section relative to the quarter chord point at the root
+        return [rotate(translate(ref_positions[index],
+                                 # Move the start of the airfoil from the
+                                 # quarter chord point to the LE
+                                 self.position.Vx, - quarter_chord[index]),
+
+                       # Rotate the section around the quarter chord point
+                       # to apply twist
+                       self.position.Vy, twist[index],
+                       ref=ref_positions[index].point)
+                for index in range(len(ref_positions))]
 
     @Attribute
     def profile_airfoils(self):
@@ -118,17 +156,20 @@ class LiftingSurface(GeomBase):
     # TO DO: ADD WARNING THAT THE USER SHOULD ADD MORE PROFILES?
     # -------------------
 
+    # -------------------------------------------------------------------------
+    # PARTS
+    # -------------------------------------------------------------------------
+
     @Part
     def profiles(self):
         return Airfoil(quantify=self.number_of_profiles,
                        airfoil_name=self.profile_airfoils[child.index],
                        # Provide chord with scaling factor if required
-                       chord=self.profile_chords[child.index] *
-                             self.chord_factor[child.index],
+                       chord=(self.profile_chords[child.index]
+                              * self.chord_factor[child.index]),
                        thickness_factor=self.profile_thickness_factor[
                            child.index],
-                       position=self.profile_locations[child.index]
-                       )
+                       position=self.profile_locations[child.index])
 
     @Part
     def surface(self):

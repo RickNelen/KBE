@@ -6,6 +6,10 @@ import numpy as np
 
 
 class Fuselage(LoftedSolid):
+    # -------------------------------------------------------------------------
+    # INPUTS
+    # -------------------------------------------------------------------------
+
     # The origin of the coordinate system is the intersection of the centre
     # line of the fuselage with the most forward plane of the fuselage;
     # hence, the nose can be positioned below or above the origin.
@@ -49,6 +53,10 @@ class Fuselage(LoftedSolid):
     @Input
     def door_width(self):
         return 0.8 if self.seat_pitch >= 1 else self.seat_pitch - 0.1
+
+    # -------------------------------------------------------------------------
+    # ATTRIBUTES
+    # -------------------------------------------------------------------------
 
     # Define the actual length of the nose
     @Attribute
@@ -178,6 +186,28 @@ class Fuselage(LoftedSolid):
         z_locations = nose + cabin + tail
         return list(zip(x_locations, y_locations, z_locations))
 
+    @Attribute
+    def right_doors(self):
+        return (self.doors.wires[index] if index % 2 == 1 else None for
+                index in range(len(self.door_profile)))
+
+    @Attribute
+    def left_doors(self):
+        return (self.doors.wires[index] if index % 2 == 0 else None for
+                index in range(len(self.door_profile)))
+
+    @Attribute
+    def profiles(self):
+        return self.profiles_set
+
+    @Attribute
+    def z_locations(self):
+        return [0] * len(self.x_locations)
+
+    # -------------------------------------------------------------------------
+    # PARTS
+    # -------------------------------------------------------------------------
+
     @Part
     def door_profile(self):
         return Rectangle(quantify=self.number_of_rows,
@@ -200,23 +230,17 @@ class Fuselage(LoftedSolid):
                               direction=self.position.Vy,
                               color='white')
 
-    @Attribute
-    def right_doors(self):
-        return (self.doors.wires[index] if index % 2 == 1 else None for
-                index in range(len(self.door_profile)))
+    @Part(in_tree=False)
+    def square(self):
+        return Rectangle(width=3,
+                         length=2,
+                         position=rotate90(self.position,
+                                           self.position.Vy))
 
-    @Attribute
-    def left_doors(self):
-        return (self.doors.wires[index] if index % 2 == 0 else None for
-                index in range(len(self.door_profile)))
-
-    @Attribute
-    def profiles(self):
-        return self.profiles_set
-
-    @Attribute
-    def z_locations(self):
-        return [0] * len(self.x_locations)
+    @Part
+    def testing(self):
+        return FilletedWire(built_from=self.square,
+                            radius=0.5)
 
     @Part
     def fuselage_curve(self):

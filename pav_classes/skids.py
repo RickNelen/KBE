@@ -8,7 +8,7 @@ class Skid(GeomBase):
     skid_width = Input(0.3)
     skid_height = Input(0.2)
 
-    skid_connection_profile = Input('2408')
+    skid_connection_profile = Input('0008')
 
     chord_skid_connection = Input(0.3)
     thickness_factor_connection = Input(1.)
