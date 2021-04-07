@@ -36,7 +36,7 @@ class LiftingSurface(GeomBase):
     # complete span
     @Input
     def semi_span(self):
-        return (self.span / 2. if self.is_mirrored == True
+        return (self.span / 2. if self.is_mirrored is True
                 else self.span)
 
     # Adjust the span fractions of the profiles if preferred
@@ -88,16 +88,19 @@ class LiftingSurface(GeomBase):
         # Position each section
         return [rotate(translate(self.position,
                                  # Translate in the longitudinal direction
-                                 'x', self.span_fraction_of_profiles[index]
+                                 self.position.Vx,
+                                 self.span_fraction_of_profiles[index]
                                  * self.semi_span * tan(sweep),
                                  # Translate in the span-wise direction
-                                 'y', self.span_fraction_of_profiles[index]
+                                 self.position.Vy,
+                                 self.span_fraction_of_profiles[index]
                                  * self.semi_span,
                                  # Translate in the vertical direction
-                                 'z', self.span_fraction_of_profiles[index]
+                                 self.position.Vz,
+                                 self.span_fraction_of_profiles[index]
                                  * tan(dihedral)),
                        # Then rotate the section
-                       'y', twist[index])
+                       self.position.Vy, twist[index])
                 for index in range(len(self.span_fraction_of_profiles))]
 
     @Attribute

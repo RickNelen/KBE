@@ -40,11 +40,13 @@ class Propeller(GeomBase):
                * int(ceil(self.hub_base_radius / self.propeller_radius
                           * self.number_of_blade_sections)))
         blade = [self.propeller_radius / self.aspect_ratio * (0.2 + 2.5
-                 * (sqrt(index / self.number_of_blade_sections -
-                         self.hub_base_radius / self.propeller_radius)
-                    - 1.3 * (index / self.number_of_blade_sections -
-                             self.hub_base_radius / self.propeller_radius)
-                    ** 1.5))
+                                                              * (sqrt(
+                    index / self.number_of_blade_sections -
+                    self.hub_base_radius / self.propeller_radius)
+                                                                 - 1.3 * (
+                                                                         index / self.number_of_blade_sections -
+                                                                         self.hub_base_radius / self.propeller_radius)
+                                                                 ** 1.5))
                  for index in range(len(hub), self.number_of_blade_sections)]
         return hub + blade
 
@@ -66,23 +68,32 @@ class Propeller(GeomBase):
     def hub_length(self):
         return self.hub_base_radius * 1.5
 
+    @Attribute
+    def point_locations(self):
+        base_point = translate(self.position,
+                               self.position.Vy, self.hub_base_radius)
+        tip_point = translate(self.position,
+                              self.position.Vz, self.hub_length)
+        return [base_point, tip_point]
+
+    @Attribute
+    def point_tangents(self):
+        base_tangent = self.position.Vz
+        tip_tangent = - self.position.Vy
+        return [base_tangent, tip_tangent]
+
     @Part(in_tree=False)
     def hub_profile(self):
-        return InterpolatedCurve(points=[Point(x=self.position.x,
-                                               y=self.position.y
-                                               + self.hub_base_radius,
-                                               z=self.position.z),
-                                         Point(x=self.position.x,
-                                               y=self.position.y,
-                                               z=self.position.z
-                                               + self.hub_length)],
-                                 tangents=[Vector(0, 0, 1), Vector(0, -1, 0)])
+        return InterpolatedCurve(points=self.point_locations,
+                                 tangents=self.point_tangents)
 
     @Part
     def hub_cone(self):
         return RevolvedSurface(basis_curve=self.hub_profile,
-                               center=self.position.point,
-                               direction=Vector(0, 0, 1))
+                               center=Point(self.position.x,
+                                            self.position.y,
+                                            self.position.z),
+                               direction=self.position.Vz)
 
     @Part(in_tree=False)
     def propeller(self):
@@ -102,8 +113,10 @@ class Propeller(GeomBase):
                               dihedral=0,
                               position=
                               rotate(translate(self.position,
-                                               'z', self.hub_length/3),
-                                     'y', radians(self.blade_setting_angle)))
+                                               self.position.Vz,
+                                               self.hub_length / 3),
+                                     self.position.Vy,
+                                     radians(self.blade_setting_angle)))
 
     @Part
     def propellers(self):
@@ -111,5 +124,5 @@ class Propeller(GeomBase):
                             color='black',
                             shape_in=self.propeller.surface,
                             rotation_point=self.position.point,
-                            vector=Vector(0, 0, 1),
+                            vector=self.position.Vz,
                             angle=self.angle_between_blades * child.index)
