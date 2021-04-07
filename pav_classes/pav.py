@@ -10,6 +10,7 @@ from .fuselage import Fuselage
 from .lifting_surface import LiftingSurface
 from .airfoil import Airfoil
 from .propeller import Propeller
+from .skids import Skid
 
 _module_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                            os.pardir))
@@ -292,6 +293,14 @@ class PAV(GeomBase):
                                             'z', -1.3,
                                             'y', self.propeller_locations[
                                                 child.index]))
+
+    # -------------------------------------------------------------------------
+    # SKIDS - REMOVE LATER
+    # -------------------------------------------------------------------------
+
+    @Part
+    def skid(self):
+        return Skid()
 
     # -------------------------------------------------------------------------
     # AVL part for analysis

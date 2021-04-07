@@ -5,7 +5,7 @@ from math import *
 import numpy as np
 
 
-class Fuselage(GeomBase):
+class Fuselage(LoftedSolid):
     # The origin of the coordinate system is the intersection of the centre
     # line of the fuselage with the most forward plane of the fuselage;
     # hence, the nose can be positioned below or above the origin.
@@ -86,74 +86,74 @@ class Fuselage(GeomBase):
     def x_locations(self):
         return self.total_length * self.relative_locations
 
-    # @Attribute
-    # def top_locations(self):
-    #     # Define the shape of the nose cone along the top at the centre
-    #     nose = [((self.nose_height + self.nose_radius_height / 2.
-    #               + 1. / self.relative_nose_length
-    #               * (0.5 - self.nose_height - self.nose_radius_height / 2.)
-    #               * sqrt(self.relative_nose_length ** 2. -
-    #                      (i - self.relative_nose_length) ** 2.))
-    #              * self.height) for i in self.relative_locations
-    #             if i <= self.relative_nose_length]
-    #     # Define the shape of the tail cone along the top at the centre
-    #     tail = [((0.5 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
-    #               * (0.5 - self.tail_height - self.tail_radius_height / 2)
-    #               * (i - (1 - self.relative_tail_length)) ** 2)) * self.height
-    #             for i in self.relative_locations if
-    #             i >= (1 - self.relative_tail_length)]
-    #     # Define the shape of the central part along the top at the centre
-    #     cabin = [self.height / 2 for i in self.relative_locations if
-    #              self.relative_nose_length < i < (
-    #                      1 - self.relative_tail_length)]
-    #     # Combine the three sections into one list
-    #     return nose + cabin + tail
-    #
-    # @Attribute
-    # def bottom_locations(self):
-    #     # Define the shape of the nose cone along the bottom at the centre
-    #     nose = [((self.nose_height - self.nose_radius_height / 2.
-    #               - 1. / self.relative_nose_length
-    #               * (0.5 + self.nose_height - self.nose_radius_height / 2.)
-    #               * sqrt(self.relative_nose_length ** 2. -
-    #                      (i - self.relative_nose_length) ** 2.))
-    #              * self.height) for i in self.relative_locations
-    #             if i <= self.relative_nose_length]
-    #     # Define the shape of the tail cone along the bottom at the centre
-    #     tail = [((-0.5 + (1 / (1 - (1 - self.relative_tail_length))) ** 2
-    #               * (0.5 + self.tail_height - self.tail_radius_height / 2)
-    #               * (i - (1 - self.relative_tail_length)) ** 2)) * self.height
-    #             for i in self.relative_locations if
-    #             i >= (1 - self.relative_tail_length)]
-    #     # Define the shape of the central part along the bottom at the centre
-    #     cabin = [-self.height / 2 for i in self.relative_locations if
-    #              self.relative_nose_length < i < (
-    #                      1 - self.relative_tail_length)]
-    #     # Combine the three sections into one list
-    #     return nose + cabin + tail
-    #
-    # @Attribute
-    # def side_locations(self):
-    #     # Define the shape of the nose cone along the top at the centre
-    #     nose = [((self.nose_radius_width / 2.
-    #               + 1. / self.relative_nose_length
-    #               * (0.5 - self.nose_radius_width / 2.)
-    #               * sqrt(self.relative_nose_length ** 2. -
-    #                      (i - self.relative_nose_length) ** 2.))
-    #              * self.width) for i in self.relative_locations
-    #             if i <= self.relative_nose_length]
-    #     # Define the shape of the tail cone along the top at the centre
-    #     tail = [((0.5 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
-    #               * (0.5 - self.tail_radius_width / 2)
-    #               * (i - (1 - self.relative_tail_length)) ** 2)) * self.width
-    #             for i in self.relative_locations if
-    #             i >= (1 - self.relative_tail_length)]
-    #     # Define the shape of the central part along the top at the centre
-    #     cabin = [self.width / 2 for i in self.relative_locations if
-    #              self.relative_nose_length < i < (
-    #                      1 - self.relative_tail_length)]
-    #     # Combine the three sections into one list
-    #     return nose + cabin + tail
+    @Attribute
+    def top_locations(self):
+        # Define the shape of the nose cone along the top at the centre
+        nose = [((self.nose_height + self.nose_radius_height / 2.
+                  + 1. / self.relative_nose_length
+                  * (0.5 - self.nose_height - self.nose_radius_height / 2.)
+                  * sqrt(self.relative_nose_length ** 2. -
+                         (i - self.relative_nose_length) ** 2.))
+                 * self.height) for i in self.relative_locations
+                if i <= self.relative_nose_length]
+        # Define the shape of the tail cone along the top at the centre
+        tail = [((0.5 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
+                  * (0.5 - self.tail_height - self.tail_radius_height / 2)
+                  * (i - (1 - self.relative_tail_length)) ** 2)) * self.height
+                for i in self.relative_locations if
+                i >= (1 - self.relative_tail_length)]
+        # Define the shape of the central part along the top at the centre
+        cabin = [self.height / 2 for i in self.relative_locations if
+                 self.relative_nose_length < i < (
+                         1 - self.relative_tail_length)]
+        # Combine the three sections into one list
+        return nose + cabin + tail
+
+    @Attribute
+    def bottom_locations(self):
+        # Define the shape of the nose cone along the bottom at the centre
+        nose = [((self.nose_height - self.nose_radius_height / 2.
+                  - 1. / self.relative_nose_length
+                  * (0.5 + self.nose_height - self.nose_radius_height / 2.)
+                  * sqrt(self.relative_nose_length ** 2. -
+                         (i - self.relative_nose_length) ** 2.))
+                 * self.height) for i in self.relative_locations
+                if i <= self.relative_nose_length]
+        # Define the shape of the tail cone along the bottom at the centre
+        tail = [((-0.5 + (1 / (1 - (1 - self.relative_tail_length))) ** 2
+                  * (0.5 + self.tail_height - self.tail_radius_height / 2)
+                  * (i - (1 - self.relative_tail_length)) ** 2)) * self.height
+                for i in self.relative_locations if
+                i >= (1 - self.relative_tail_length)]
+        # Define the shape of the central part along the bottom at the centre
+        cabin = [-self.height / 2 for i in self.relative_locations if
+                 self.relative_nose_length < i < (
+                         1 - self.relative_tail_length)]
+        # Combine the three sections into one list
+        return nose + cabin + tail
+
+    @Attribute
+    def side_locations(self):
+        # Define the shape of the nose cone along the top at the centre
+        nose = [((self.nose_radius_width / 2.
+                  + 1. / self.relative_nose_length
+                  * (0.5 - self.nose_radius_width / 2.)
+                  * sqrt(self.relative_nose_length ** 2. -
+                         (i - self.relative_nose_length) ** 2.))
+                 * self.width) for i in self.relative_locations
+                if i <= self.relative_nose_length]
+        # Define the shape of the tail cone along the top at the centre
+        tail = [((0.5 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
+                  * (0.5 - self.tail_radius_width / 2)
+                  * (i - (1 - self.relative_tail_length)) ** 2)) * self.width
+                for i in self.relative_locations if
+                i >= (1 - self.relative_tail_length)]
+        # Define the shape of the central part along the top at the centre
+        cabin = [self.width / 2 for i in self.relative_locations if
+                 self.relative_nose_length < i < (
+                         1 - self.relative_tail_length)]
+        # Combine the three sections into one list
+        return nose + cabin + tail
 
     @Attribute
     def locations(self):
@@ -210,13 +210,13 @@ class Fuselage(GeomBase):
         return (self.doors.wires[index] if index % 2 == 0 else None for
                 index in range(len(self.door_profile)))
 
-    # @Attribute
-    # def profiles(self):
-    #     return self.profiles_set
+    @Attribute
+    def profiles(self):
+        return self.profiles_set
 
-    # @Attribute
-    # def z_locations(self):
-    #     return [0] * len(self.x_locations)
+    @Attribute
+    def z_locations(self):
+        return [0] * len(self.x_locations)
 
     @Part
     def fuselage_curve(self):
@@ -228,45 +228,45 @@ class Fuselage(GeomBase):
                                mesh_deflection=0.0001,
                                direction=Vector(1, 0, 0))
 
-    # @Part
-    # def profiles_set(self):
-    #     return InterpolatedCurve(quantify=len(self.x_locations),
-    #                              is_periodic=False,
-    #                              points=[Point(x=self.x_locations[
-    #                                  child.index],
-    #                                            y=0,
-    #                                            z=self.top_locations[
-    #                                                child.index]),
-    #                                      Point(x=self.x_locations[
-    #                                          child.index],
-    #                                            y=-self.side_locations[
-    #                                                child.index],
-    #                                            z=(self.top_locations[
-    #                                                   child.index]
-    #                                               - self.bottom_locations[
-    #                                                   child.index]) * 1 / 3
-    #                                              + self.bottom_locations[
-    #                                                  child.index]),
-    #                                      Point(x=self.x_locations[
-    #                                          child.index],
-    #                                            y=0,
-    #                                            z=self.bottom_locations[
-    #                                                child.index]),
-    #                                      Point(x=self.x_locations[
-    #                                          child.index],
-    #                                            y=self.side_locations[
-    #                                                child.index],
-    #                                            z=(self.top_locations[
-    #                                                   child.index]
-    #                                               - self.bottom_locations[
-    #                                                   child.index]) * 1 / 3
-    #                                              + self.bottom_locations[
-    #                                                  child.index]),
-    #                                      Point(x=self.x_locations[
-    #                                          child.index],
-    #                                            y=0,
-    #                                            z=self.top_locations[
-    #                                                child.index])],
-    #                              tangents=[Vector(0, -1, 0), Vector(0, 0, -1),
-    #                                        Vector(0, 1, 0), Vector(0, 0, 1),
-    #                                        Vector(0, -1, 0)])
+    @Part
+    def profiles_set(self):
+        return InterpolatedCurve(quantify=len(self.x_locations),
+                                 is_periodic=False,
+                                 points=[Point(x=self.x_locations[
+                                     child.index],
+                                               y=0,
+                                               z=self.top_locations[
+                                                   child.index]),
+                                         Point(x=self.x_locations[
+                                             child.index],
+                                               y=-self.side_locations[
+                                                   child.index],
+                                               z=(self.top_locations[
+                                                      child.index]
+                                                  - self.bottom_locations[
+                                                      child.index]) * 1 / 3
+                                                 + self.bottom_locations[
+                                                     child.index]),
+                                         Point(x=self.x_locations[
+                                             child.index],
+                                               y=0,
+                                               z=self.bottom_locations[
+                                                   child.index]),
+                                         Point(x=self.x_locations[
+                                             child.index],
+                                               y=self.side_locations[
+                                                   child.index],
+                                               z=(self.top_locations[
+                                                      child.index]
+                                                  - self.bottom_locations[
+                                                      child.index]) * 1 / 3
+                                                 + self.bottom_locations[
+                                                     child.index]),
+                                         Point(x=self.x_locations[
+                                             child.index],
+                                               y=0,
+                                               z=self.top_locations[
+                                                   child.index])],
+                                 tangents=[Vector(0, -1, 0), Vector(0, 0, -1),
+                                           Vector(0, 1, 0), Vector(0, 0, 1),
+                                           Vector(0, -1, 0)])
