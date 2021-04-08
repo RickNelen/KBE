@@ -18,6 +18,10 @@ OUTPUT_DIR = os.path.join(_module_dir, 'output_files', '')
 FILENAME = os.path.join(OUTPUT_DIR, 'pav_assembly.stp', '')
 
 
+def chord_length(root_chord, tip_chord, span_position):
+    return root_chord - (root_chord - tip_chord) * span_position
+
+
 class PAV(GeomBase):
     name = Input()
 
@@ -183,6 +187,10 @@ class PAV(GeomBase):
                 self.cruise_mach_number - 0.4) * 50
 
     @Attribute
+    def wing_dihedral(self):
+        return 0 if self.wing_location.z > 0 else 2
+
+    @Attribute
     def wing_location(self):
         length_ratio = 0.3
         height_ratio = 0.8
@@ -192,17 +200,60 @@ class PAV(GeomBase):
                                        * self.cabin_height)
 
     @Attribute
+    def number_of_propellers(self):
+        return ceil(self.wing_area / 2)
+
+    @Attribute
+    def propeller_radii(self):
+        return ([1 - 0.1 * self.number_of_propellers]
+                * self.number_of_propellers)
+
+    @Attribute
     def propeller_locations(self):
-        number_props = round(self.wing_area/3)
-        loc = [1] * number_props
-        first = self.position.y if number_props % 2 != 0 else None
-        symmetrical = loc[1:]
-        one_side = ceil(len(symmetrical) / 2)
-        pos = [self.wing_location.y + (1 - 0.7 * index / one_side)
-               * self.wing_span/2 for index in range(one_side)]
-        other_wing = [-1 * pos[index] for index in range(one_side)]
-        return (first + pos + other_wing if number_props % 2 != 0
-                else pos + other_wing)
+        semi_span = self.wing_span / 2
+        sweep = radians(self.wing_sweep)
+        dihedral = radians(self.wing_dihedral)
+        # If there is an odd number of propellers, the first propeller is
+        # located at the nose of the plane
+        first = translate(self.wing_location,
+                          self.position.Vx, - self.wing_location.x,
+                          self.position.Vz, - self.wing_location.z)
+
+        # Determine the number of propellers on each side
+        one_side = (int(self.number_of_propellers / 2)
+                    if self.number_of_propellers % 2 != 0
+                    else int((self.number_of_propellers - 1) / 2))
+
+        # Position each propeller in y-direction on one wing; make sure they
+        # are placed such that the most inboard propeller tip still is 0.5
+        # propeller radius away from the fuselage
+        y_shift = [(1 - (semi_span - self.cabin_width / 2
+                         - 1.5 * self.propeller_radii[-1]) / semi_span
+                    * index / one_side)
+                   * self.wing_span / 2
+                   for index in range(one_side)]
+
+        # Place the propellers just ahead of the leading edge of the right wing
+        right_wing = [translate(self.wing_location,
+                                self.wing_location.Vx,
+                                y_shift[index] * tan(sweep)
+                                - 0.3 * chord_length(
+                                    self.main_wing.root_chord,
+                                    self.main_wing.tip_chord,
+                                    y_shift[index] / semi_span)
+                                - self.propeller_radii[index] * tan(sweep),
+                                self.wing_location.Vy,
+                                y_shift[index],
+                                self.wing_location.Vz,
+                                y_shift[index] * tan(dihedral))
+                      for index in range(one_side)]
+
+        # Place the propellers just ahead of the leading edge of the left wing
+        left_wing = [translate(right_wing[index],
+                               self.wing_location.Vy,
+                               - 2 * y_shift[index])
+                     for index in range(one_side)]
+        return [first] + right_wing + left_wing
 
     @Attribute
     def avl_surfaces(self):
@@ -220,7 +271,7 @@ class PAV(GeomBase):
                               sweep=self.wing_sweep,
                               incidence_angle=0,
                               twist=-3,
-                              dihedral=2,
+                              dihedral=self.wing_dihedral,
                               position=self.wing_location,
                               color=self.secondary_colour)
 
@@ -282,6 +333,14 @@ class PAV(GeomBase):
         return Propeller(name='cruise_propellers',
                          quantify=len(self.propeller_locations),
                          number_of_blades=6,
+                         blade_radius=self.propeller_radii[child.index],
+                         nacelle_length=(0.55 * chord_length(
+                             self.main_wing.root_chord,
+                             self.main_wing.tip_chord,
+                             abs(self.propeller_locations[
+                                     child.index].y / (self.wing_span / 2)))
+                                         + self.propeller_radii[child.index]
+                                         * tan(radians(self.wing_sweep))),
                          aspect_ratio=3,
                          ratio_hub_to_blade_radius=0.15,
                          leading_edge_sweep=0,
@@ -289,11 +348,9 @@ class PAV(GeomBase):
                          blade_outwash=30,
                          number_of_blade_sections=50,
                          blade_thickness=60,
-                         position=translate(rotate90(self.wing_location,
-                                                     - self.position.Vy),
-                                            'z', 0,
-                                            'y', self.propeller_locations[
-                                                child.index]))
+                         position=rotate90(
+                             self.propeller_locations[child.index],
+                             - self.position.Vy))
 
     # -------------------------------------------------------------------------
     # SKIDS - REMOVE LATER
