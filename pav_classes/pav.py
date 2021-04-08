@@ -17,6 +17,10 @@ _module_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
 OUTPUT_DIR = os.path.join(_module_dir, 'output_files', '')
 FILENAME = os.path.join(OUTPUT_DIR, 'pav_assembly.stp', '')
 
+g = 9.80665
+gamma = 1.4
+R = 287
+
 
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
@@ -67,17 +71,17 @@ class PAV(GeomBase):
     # Mostly fuselage related
     # -------------------------------------------------------------------------
 
-    @Attribute
-    def testing(self):
-        return str(OUTPUT_DIR)
+    # @Attribute
+    # def testing(self):
+    #     return str(OUTPUT_DIR)
 
     @Attribute
     def seat_pitch(self):
-        return 1.5 if self.quality_level == 2 else 1
+        return 1.4 if self.quality_level == 2 else 0.95
 
     @Attribute
     def seat_width(self):
-        return 0.9 if self.quality_level == 2 else 0.6
+        return 0.7 if self.quality_level == 2 else 0.5
 
     @Attribute
     def number_of_rows(self):
@@ -130,23 +134,16 @@ class PAV(GeomBase):
 
     @Attribute
     def cruise_temperature(self):
-        return 250
-
-    # -------------------------------------------------
-    # TO DO: implement correct formula!!!!
-    # -------------------------------------------------
+        return 288.15 - 0.0065 * self.cruise_altitude
 
     @Attribute
     def cruise_density(self):
-        return 1.225 - 0.0001 * self.cruise_altitude
-
-    # -------------------------------------------------
-    # TO DO: implement correct formula!!!!
-    # -------------------------------------------------
+        return (1.225 * (self.cruise_temperature / 288.15)
+                ** (-1 - g / (R * -0.0065)))
 
     @Attribute
     def cruise_speed_of_sound(self):
-        return sqrt(1.4 * 287 * self.cruise_temperature)
+        return sqrt(gamma * R * self.cruise_temperature)
 
     @Attribute
     def cruise_mach_number(self):
@@ -156,7 +153,7 @@ class PAV(GeomBase):
     @Attribute
     def maximum_take_off_weight(self):
         # MTOW in Newtons
-        return (2000 + self.number_of_passengers * 70) * 9.81
+        return (2000 + self.number_of_passengers * 70) * g
 
     # -------------------------------------------------
     # TO DO: implement correct formula!!!!
@@ -216,8 +213,11 @@ class PAV(GeomBase):
         # If there is an odd number of propellers, the first propeller is
         # located at the nose of the plane
         first = translate(self.wing_location,
-                          self.position.Vx, - self.wing_location.x,
-                          self.position.Vz, - self.wing_location.z)
+                          self.position.Vx,
+                          - self.wing_location.x,
+                          self.position.Vz,
+                          - self.wing_location.z
+                          + self.fuselage.nose_height * self.cabin_height)
 
         # Determine the number of propellers on each side
         one_side = (int(self.number_of_propellers / 2)
@@ -288,10 +288,9 @@ class PAV(GeomBase):
                               incidence_angle=0,
                               twist=0,
                               dihedral=3,
-                              position=self.position.translate('x',
-                                                               self.fuselage_length * 0.8,
-                                                               'z',
-                                                               0.3 * self.cabin_height),
+                              position=self.position.translate(
+                                  'x', self.fuselage_length * 0.8,
+                                  'z', 0.3 * self.cabin_height),
                               color=self.secondary_colour)
 
     @Part
@@ -320,7 +319,7 @@ class PAV(GeomBase):
                         tail_fineness=(self.length_of_fuselage_tail
                                        / self.cabin_width),
                         width=self.cabin_width,
-                        height=self.cabin_height,
+                        cabin_height=self.cabin_height,
                         cabin_length=self.cabin_length,
                         nose_radius_height=0.1,
                         tail_radius_height=0.05,

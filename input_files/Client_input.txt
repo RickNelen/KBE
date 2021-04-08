@@ -6,7 +6,7 @@ Please adhere to the units given below. For quality level, provide 1 for economy
 
 Number of passengers: 	3.4
 Range in km:		480.6
-Maximum span in m:		6.6
+Maximum span in m:		11.6
 Quality level: 2
 Wheels:				yes
 Cruise velocity in km/h:	400
