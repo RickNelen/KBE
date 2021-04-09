@@ -21,8 +21,11 @@ FILENAME = os.path.join(OUTPUT_DIR, 'pav_assembly.stp', '')
 g = 9.80665
 gamma = 1.4
 R = 287
-lbs_to_kg = 0.45359237
-ft_to_m = 0.3048
+
+C_T = 0.0050  # between 0.0050 and 0.0060
+sigma_rotor = 0.070  # fixed
+Mtip = 0.6  # fixed, higher Mach numbers for the rotor tips lead to stall
+DL_max = 1500  # fixed
 
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
@@ -73,44 +76,6 @@ class PAV(GeomBase):
     # Centre of gravity related
     # -------------------------------------------------------------------------
 
-    @Attribute
-    def pav_components(self):
-        return self.find_children(lambda o: isinstance(o, (LoftedSolid,
-                                                           RevolvedSolid,
-                                                           RotatedShape)))
-
-    @Attribute
-    def center_of_gravity_of_components(self):
-        return [component.cog for component in self.pav_components]
-
-    @Attribute
-    def mass_of_components(self):
-        # Replace these things by measured items and proper values later!
-        ultimate_load_factor = 3.
-        root_t_over_c = 0.12
-        control_surface_area = 0.1 * self.wing_area
-        k_door = 1.06
-        k_lg = 1.0
-        k_ws = 0.95
-        l_over_d = 20
-        # --------
-        mass_wing = (0.0051 * (self.maximum_take_off_weight / lbs_to_kg
-                              * ultimate_load_factor) ** 0.557
-                     * (self.wing_area / (ft_to_m ** 2)) ** 0.649
-                     * sqrt(self.wing_aspect_ratio) * root_t_over_c ** -0.4
-                     * (1 + self.main_wing.taper_ratio) ** 0.1
-                     * (cos(radians(self.wing_sweep))) ** -1
-                     * control_surface_area ** 0.1)
-        mass_fuselage = (0.3280 * k_door * k_lg *
-                         (self.maximum_take_off_weight / lbs_to_kg
-                          * ultimate_load_factor) ** 0.5
-                         * (self.fuselage_length / ft_to_m) ** 0.25
-                         * (self.fuselage.fuselage_shape.size / (ft_to_m ** 2))
-                         ** 0.302
-                         * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
-
-        return [mass_wing, mass_fuselage]
-
     # -------------------------------------------------------------------------
     # Horizontal tail related
     # -------------------------------------------------------------------------
@@ -119,6 +84,55 @@ class PAV(GeomBase):
     # Propeller related
     # -------------------------------------------------------------------------
 
+    N_blades = Input(4)             #between 2 and 5
+    chord_rotor = Input(0.08)
+    R_rotor = Input(.4)
+    ROC_vertical = Input(10)        #between 5 and 15 m/s is most common
+    n_rotors = Input(4)             #should be even, >2
+    C_D_rotor = Input(0.1)          #obtain from some analysis somewhere
+
+        #still needs to be added: constant of R/chord, link with length skids, find C_D, then get a formula between R and n -> only variables are R/chord, n, N
+
+    @Attribute
+    def Disk_Loading(self):
+        return (self.T_max_vertical/(pi*self.R_rotor**2) if self.T_max_vertical/(pi*self.R_rotor**2) <= DL_max
+                else "DL is too high")
+
+    @Attribute
+    def T_max_vertical(self):
+        return self.P_climb/self.ROC_vertical
+
+    @Attribute
+    def P_climb(self):
+        return self.P_hover + self.P_ROC + self.P_profile + self.P_D_liftingsurface
+
+    @Attribute
+    def P_hover(self):
+        return self.T_hover * self.V_iclimb
+
+    @Attribute
+    def T_hover(self):
+        return 1./6. * self.N_blades * 6.6 * CT / sigma_rotor * self.cruise_density * self.chord_rotor * (0.97*Mtip*(sqrt(R*gamma*self.cruise_temperature))) ** 2 * 0.97 * self.R_rotor * self.n_rotors
+
+    @Attribute
+    def V_iclimb(self):
+        return self.ROC_vertical / 2 + sqrt((self.ROC_vertical/2) ** 2 * self.T_hover / (2 * self.cruise_density * pi * self.R_rotor))
+
+    @Attribute
+    def P_ROC(self):
+        return self.MTOW * self.ROC_vertical / 2
+
+    @Attribute
+    def P_profile(self):
+        return self.C_d_rotor * 1./8. * self.cruise_density * self.chord_rotor * self.N_blades * (Mtip*(sqrt(R*gamma*self.cruise_temperature))) ** 3 * self.R_rotor * self.n_rotors
+
+    @Attribute
+    def P_D_liftingsurface(self):
+        return self.D_liftingsurfaces * self.ROC_vertical
+
+    @Attribute
+    def D_liftingsurfaces(self):
+        return 1./2. * self.cruise_density * self.ROC_vertical**2 * self.C_D_flatplate * (self.wing_area + self.horizontal_tail_area)
     # -------------------------------------------------------------------------
     # Mostly fuselage related
     # -------------------------------------------------------------------------
