@@ -116,10 +116,10 @@ class Propeller(GeomBase):
 
     @Part
     def hub_cone(self):
-        return RevolvedSurface(color='blue',
-                               basis_curve=self.hub_profile,
-                               center=self.position.point,
-                               direction=self.position.Vz)
+        return RevolvedSolid(color='blue',
+                             built_from=self.hub_profile,
+                             center=self.position.point,
+                             direction=self.position.Vz)
 
     @Part(in_tree=False)
     def nacelle_profile(self):
@@ -128,9 +128,9 @@ class Propeller(GeomBase):
 
     @Part
     def nacelle(self):
-        return RevolvedSurface(basis_curve=self.nacelle_profile,
-                               center=self.position.point,
-                               direction=self.position.Vz)
+        return RevolvedSolid(built_from=self.nacelle_profile,
+                             center=self.position.point,
+                             direction=self.position.Vz)
 
     @Part(in_tree=False)
     def propeller(self):

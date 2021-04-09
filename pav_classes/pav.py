@@ -21,7 +21,8 @@ FILENAME = os.path.join(OUTPUT_DIR, 'pav_assembly.stp', '')
 g = 9.80665
 gamma = 1.4
 R = 287
-
+lbs_to_kg = 0.45359237
+ft_to_m = 0.3048
 
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
@@ -71,6 +72,44 @@ class PAV(GeomBase):
     # -------------------------------------------------------------------------
     # Centre of gravity related
     # -------------------------------------------------------------------------
+
+    @Attribute
+    def pav_components(self):
+        return self.find_children(lambda o: isinstance(o, (LoftedSolid,
+                                                           RevolvedSolid,
+                                                           RotatedShape)))
+
+    @Attribute
+    def center_of_gravity_of_components(self):
+        return [component.cog for component in self.pav_components]
+
+    @Attribute
+    def mass_of_components(self):
+        # Replace these things by measured items and proper values later!
+        ultimate_load_factor = 3.
+        root_t_over_c = 0.12
+        control_surface_area = 0.1 * self.wing_area
+        k_door = 1.06
+        k_lg = 1.0
+        k_ws = 0.95
+        l_over_d = 20
+        # --------
+        mass_wing = (0.0051 * (self.maximum_take_off_weight / lbs_to_kg
+                              * ultimate_load_factor) ** 0.557
+                     * (self.wing_area / (ft_to_m ** 2)) ** 0.649
+                     * sqrt(self.wing_aspect_ratio) * root_t_over_c ** -0.4
+                     * (1 + self.main_wing.taper_ratio) ** 0.1
+                     * (cos(radians(self.wing_sweep))) ** -1
+                     * control_surface_area ** 0.1)
+        mass_fuselage = (0.3280 * k_door * k_lg *
+                         (self.maximum_take_off_weight / lbs_to_kg
+                          * ultimate_load_factor) ** 0.5
+                         * (self.fuselage_length / ft_to_m) ** 0.25
+                         * (self.fuselage.fuselage_shape.size / (ft_to_m ** 2))
+                         ** 0.302
+                         * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
+
+        return [mass_wing, mass_fuselage]
 
     # -------------------------------------------------------------------------
     # Horizontal tail related
