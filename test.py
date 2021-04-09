@@ -1,6 +1,7 @@
 import os.path
 from fpdf import FPDF
 from datetime import date
+from math import *
 import kbeutils.avl as avl
 
 from reportlab.lib.colors import blue
@@ -34,7 +35,7 @@ with open(INPUT_FILE, encoding="Latin-1") as f:
     contents = contents[start:].split()
 
     # Obtain the parameters directly from the input file
-    passengers = int(float(contents[3]))
+    passengers = ceil(float(contents[3]))
     range_in_km = float(contents[7])
     max_span = float(contents[12])
     quality_choice = int(float(contents[15]))

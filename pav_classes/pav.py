@@ -11,6 +11,7 @@ from .lifting_surface import LiftingSurface
 from .airfoil import Airfoil
 from .propeller import Propeller
 from .skids import Skid
+from .wheels import Wheels
 
 _module_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                            os.pardir))
@@ -68,12 +69,20 @@ class PAV(GeomBase):
                 else 1 + self.number_of_seats_abreast / 2)
 
     # -------------------------------------------------------------------------
-    # Mostly fuselage related
+    # Centre of gravity related
     # -------------------------------------------------------------------------
 
-    # @Attribute
-    # def testing(self):
-    #     return str(OUTPUT_DIR)
+    # -------------------------------------------------------------------------
+    # Horizontal tail related
+    # -------------------------------------------------------------------------
+
+    # -------------------------------------------------------------------------
+    # Propeller related
+    # -------------------------------------------------------------------------
+
+    # -------------------------------------------------------------------------
+    # Mostly fuselage related
+    # -------------------------------------------------------------------------
 
     @Attribute
     def seat_pitch(self):
@@ -352,12 +361,16 @@ class PAV(GeomBase):
                              - self.position.Vy))
 
     # -------------------------------------------------------------------------
-    # SKIDS - REMOVE LATER
+    # SKIDS AND WHEELS - REMOVE LATER
     # -------------------------------------------------------------------------
 
     @Part
     def skid(self):
         return Skid()
+
+    @Part
+    def wheel(self):
+        return Wheels()
 
     # -------------------------------------------------------------------------
     # AVL part for analysis
