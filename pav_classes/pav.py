@@ -24,6 +24,7 @@ R = 287
 lbs_to_kg = 0.45359237
 ft_to_m = 0.3048
 
+
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
 
@@ -85,9 +86,21 @@ class PAV(GeomBase):
 
     @Attribute
     def mass_of_components(self):
+        horizontal_tail_t_over_c = float(
+            self.horizontal_tail.airfoils[0]) / 100
+        vertical_tail_t_over_c = float(
+            self.vertical_tail.airfoils[0]) / 100
+
+        # These tail volume coefficients assume general aviation - twin
+        # engine aircraft; CHECK ONCE MORE IF THIS IS WORKING WELL! (see
+        # slide 7)
+        horizontal_tail_volume_coefficient = 0.8
+        vertical_tail_volume_coefficient = 0.07
+
         # Replace these things by measured items and proper values later!
         ultimate_load_factor = 3.
         root_t_over_c = 0.12
+
         control_surface_area = 0.1 * self.wing_area
         k_door = 1.06
         k_lg = 1.0
@@ -95,7 +108,7 @@ class PAV(GeomBase):
         l_over_d = 20
         # --------
         mass_wing = (0.0051 * (self.maximum_take_off_weight / lbs_to_kg
-                              * ultimate_load_factor) ** 0.557
+                               * ultimate_load_factor) ** 0.557
                      * (self.wing_area / (ft_to_m ** 2)) ** 0.649
                      * sqrt(self.wing_aspect_ratio) * root_t_over_c ** -0.4
                      * (1 + self.main_wing.taper_ratio) ** 0.1
@@ -105,15 +118,58 @@ class PAV(GeomBase):
                          (self.maximum_take_off_weight / lbs_to_kg
                           * ultimate_load_factor) ** 0.5
                          * (self.fuselage_length / ft_to_m) ** 0.25
-                         * (self.fuselage.fuselage_shape.size / (ft_to_m ** 2))
+
+                         # THIS LINE TRIES TO GET THE AREA OF THE FUSELAGE BUT
+                         # DOES NOT WORK YET
+                         * (self.pav_components[10].area / (ft_to_m ** 2))
                          ** 0.302
                          * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
+        mass_horizontal_tail = (0.016 *
+                                (self.maximum_take_off_weight / lbs_to_kg)
+                                ** 0.414
+                                * (0.5 * self.cruise_density
+                                   * self.velocity ** 2)
+                                ** 0.168
+                                * self.horizontal_tail_area ** 0.896
+                                * (100 * horizontal_tail_t_over_c /
+                                   cos(radians(
+                                       self.horizontal_tail_sweep))) ** -0.12)
+        mass_vertical_tail = (0.073 *
+                              (1 + 0.2 * horizontal_tail_volume_coefficient
+                               / vertical_tail_volume_coefficient)
+                              * (self.maximum_take_off_weight / lbs_to_kg
+                                 * ultimate_load_factor) ** 0.376
+                              * (0.5 * self.cruise_density * self.velocity
+                                 ** 2) ** 0.122
+                              * self.vertical_tail_area ** 0.873
+                              * (100 * vertical_tail_t_over_c /
+                                 cos(radians(self.vertical_tail_sweep)))
+                              ** - 0.49)
 
-        return [mass_wing, mass_fuselage]
+        return [mass_wing, mass_fuselage,
+                mass_horizontal_tail, mass_vertical_tail]
 
     # -------------------------------------------------------------------------
     # Horizontal tail related
     # -------------------------------------------------------------------------
+
+    # ADJUST THIS THING !!!!!!!!!!
+    @Attribute
+    def horizontal_tail_area(self):
+        return 10
+
+    @Attribute
+    def vertical_tail_area(self):
+        return 8
+
+    # ADJUST THIS THING !!!!!!!!!!
+    @Attribute
+    def horizontal_tail_sweep(self):
+        return 30
+
+    @Attribute
+    def vertical_tail_sweep(self):
+        return 20
 
     # -------------------------------------------------------------------------
     # Propeller related
