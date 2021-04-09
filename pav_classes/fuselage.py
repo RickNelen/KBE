@@ -281,5 +281,4 @@ class Fuselage(GeomBase):
     def fuselage_shape(self):
         return Compound(built_from=[self.fuselage_nose_cone,
                                     self.fuselage_cabin,
-                                    self.fuselage_tail_cone],
-                        color='red')
+                                    self.fuselage_tail_cone])

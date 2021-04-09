@@ -14,6 +14,7 @@ class Propeller(GeomBase):
     ratio_hub_to_blade_radius = Input(0.2)
 
     # Inputs related to the nacelle
+    nacelle_included = Input(True)
     nacelle_length = Input(1)
 
     # Inputs related to the blades
@@ -130,7 +131,8 @@ class Propeller(GeomBase):
     def nacelle(self):
         return RevolvedSolid(built_from=self.nacelle_profile,
                              center=self.position.point,
-                             direction=self.position.Vz)
+                             direction=self.position.Vz,
+                             suppress=not self.nacelle_included)
 
     @Part(in_tree=False)
     def propeller(self):

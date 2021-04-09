@@ -24,22 +24,23 @@ class Skid(GeomBase):
     @Part(in_tree=False)
     def skid_profile(self):
         return Ellipse(quantify=2,
-                       major_radius=self.skid_width,
-                       minor_radius=self.skid_height,
+                       major_radius=self.skid_width / 2,
+                       minor_radius=self.skid_height / 2,
                        position=rotate90(rotate90(translate(self.position,
                                                             self.position.Vx,
-                                                            2 * child.index),
+                                                            self.skid_length
+                                                            * child.index),
                                                   self.position.Vz),
                                          self.position.Vy))
 
     @Part
     def skid(self):
-        return LoftedSolid(self.profiles)
+        return LoftedSolid(profiles=self.profiles,
+                           color='silver')
 
     @Part
     def vertical_skid(self):
         return LiftingSurface(name='skid_connections',
-                              quantify=2,
                               number_of_profiles=2,
                               airfoils=[self.skid_connection_profile],
                               is_mirrored=False,
@@ -53,12 +54,12 @@ class Skid(GeomBase):
                               incidence_angle=0,
                               twist=self.twist_skid_connection,
                               dihedral=0,
-                              position=rotate90(translate(self.position,
-                                                          self.position.Vx,
-                                                          self.skid_length -
-                                                          self.chord_skid_connection
-                                                          * child.index),
-                                                self.position.Vx))
+                              position=rotate90(translate(
+                                  self.position,
+                                  self.position.Vx,
+                                  self.skid_length -
+                                  3/4 * self.chord_skid_connection),
+                                  self.position.Vx))
 
 
 if __name__ == '__main__':

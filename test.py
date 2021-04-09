@@ -64,7 +64,7 @@ if __name__ == '__main__':
               range=range_in_km,
               maximum_span=max_span,
               quality_level=quality_choice,
-              wheels=wheels_choice,
+              wheels_included=wheels_choice,
               cruise_velocity=cruise_speed,
               primary_colour=primary_colour_in,
               secondary_colour=secondary_colour_in,
@@ -93,7 +93,7 @@ baggage = format(pav.number_of_passengers * pav.quality_level * 22, '.0f')
 range = format(pav.range, '.0f')
 velocity = format(pav.cruise_velocity, '.0f')
 quality = 'Economy' if pav.quality_level == 1 else 'Business'
-wheels = 'Yes' if pav.wheels is True else 'No'
+wheels = 'Yes' if pav.wheels_included is True else 'No'
 span = format(pav.wing_span, '.2f')
 length = format(pav.fuselage_length, '.2f')
 prim_col = pav.primary_colour.capitalize()
@@ -126,12 +126,13 @@ total_cost = '${:,.2f}'.format(total_price)
 
 cost_names = ['Basic price: \n', 'Additional cost for cabin desgin: \n',
               'Cost for primary colour: \n', 'Cost for secondary colour: \n']
-cost_names.insert(2, 'Additonal cost for wheels: \n') if pav.wheels is True \
-    else None
+cost_names.insert(2, 'Additonal cost for wheels: \n') if pav.wheels_included \
+                                                         is True else None
 
 cost_values = [base_cost + '\n', quality_cost + '\n', prim_col_cost + '\n',
                sec_col_cost + '\n']
-cost_values.insert(2, wheel_cost + '\n') if pav.wheels is True else None
+cost_values.insert(2, wheel_cost + '\n') if pav.wheels_included is True \
+    else None
 
 
 class PDF(FPDF):
