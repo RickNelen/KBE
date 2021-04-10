@@ -117,15 +117,16 @@ class LiftingSurface(GeomBase):
 
         # Provide the locations of the quarter chord points for all sections
         ref_positions = [self.position.translate(
-            self.position.Vx,
             # Translate in x direction
+            self.position.Vx,
             self.span_fraction_of_profiles[index] * self.semi_span
             * tan(sweep),
             # Translate in y direction
-            self.position.Vy, self.span_fraction_of_profiles[index]
-            * self.semi_span,
+            self.position.Vy,
+            self.span_fraction_of_profiles[index] * self.semi_span,
             # Translate in z direction
-            self.position.Vz, self.span_fraction_of_profiles[index]
+            self.position.Vz,
+            self.span_fraction_of_profiles[index] * self.semi_span
             * tan(dihedral))
             for index in range(len(self.span_fraction_of_profiles))]
 
@@ -175,7 +176,7 @@ class LiftingSurface(GeomBase):
     def surface(self):
         return LoftedSolid(profiles=[profile.curve for profile in
                                      self.profiles],
-                           ruled=True)
+                           ruled=False)
 
     @Part
     def mirrored(self):

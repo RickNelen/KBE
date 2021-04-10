@@ -16,10 +16,6 @@ class Wheels(GeomBase):
     #: :type: float
     wheel_length = Input(0.08)
 
-    rod_radius = Input(0.02)
-    rod_horizontal_length = Input(0.1)
-    rod_vertical_length = Input(0.5)
-
     @Attribute
     def section_radius(self):
         """section radius multiplied by the radius distribution
@@ -38,7 +34,7 @@ class Wheels(GeomBase):
         """
         return self.wheel_length / (len(self.wheel_sections) - 1)
 
-    @Part
+    @Part(in_tree=False)
     def profiles(self):
         return Circle(quantify=len(self.wheel_sections), color="Black",
                       radius=self.section_radius[child.index],
@@ -55,22 +51,34 @@ class Wheels(GeomBase):
     def wheel(self):
         return LoftedSolid(profiles=self.profiles)
 
-    @Part
+
+class Rods(GeomBase):
+    rod_radius = Input(0.02)
+    rod_horizontal_length = Input(0.1)
+    rod_vertical_length = Input(0.5)
+    wheel_length = Input(0.2)
+
+    @Part(in_tree=False)
     def rod_horizontal(self):
         return Cylinder(self.rod_radius, self.rod_horizontal_length,
                         position=rotate90(
                             translate(self.position, self.position.Vy,
                                       self.wheel_length), -self.position.Vx))
 
-    @Part
+    @Part(in_tree=False)
     def rod_vertical(self):
         return Cylinder(self.rod_radius, self.rod_vertical_length,
                         position=rotate90(
-                            translate(self.position, self.position.Vy,
+                            translate(self.position,
+                                      self.position.Vy,
                                       self.wheel_length
                                       + self.rod_horizontal_length
                                       - self.rod_radius),
                             self.position.Vz))
+
+    @Part
+    def rods(self):
+        return Compound(built_from=[self.rod_horizontal, self.rod_vertical])
 
 
 if __name__ == '__main__':

@@ -67,7 +67,8 @@ class Airfoil(GeomBase):  # note the use of FittedCurve as superclass
                            # Scale times the chord in x direction, and also
                            # with the thickness factor in z direction to
                            # allow for multiple thickness airfoils
-                           factor=(self.chord, 1,
+                           factor=(self.chord, self.chord
+                                   * self.thickness_factor,
                                    self.chord * self.thickness_factor))
 
     @Part

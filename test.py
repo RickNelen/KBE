@@ -70,19 +70,19 @@ if __name__ == '__main__':
               secondary_colour=secondary_colour_in,
               name='PAV')
 
-    cases = [('fixed_aoa', {'alpha': 3}),
-             ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
-                                                  value='0.3',
-                                                  setting='CL')})]
-
-    analysis = AvlAnalysis(aircraft=pav,
-                           case_settings=cases)
+    # cases = [('fixed_aoa', {'alpha': 3}),
+    #          ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
+    #                                               value='0.3',
+    #                                               setting='CL')})]
+    #
+    # analysis = AvlAnalysis(aircraft=pav,
+    #                        case_settings=cases)
 
     display(pav)
 
     # print(analysis.lift_over_drag)
-
-#     pav.step_parts.write()
+    #
+    # pav.step_parts.write()
 
 # -----------------------------------------------------------------------------
 # Get all the parameters to generate a pdf output

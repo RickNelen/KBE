@@ -11,7 +11,8 @@ from .lifting_surface import LiftingSurface
 from .airfoil import Airfoil
 from .propeller import Propeller
 from .skids import Skid
-from .wheels import Wheels
+from .wheels import Wheels, Rods
+from .avl_configurator import AvlAnalysis
 
 _module_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                            os.pardir))
@@ -33,6 +34,12 @@ DL_max = 1500  # fixed
 
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
+
+
+cases = [('fixed_aoa', {'alpha': 3}),
+         ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
+                                              value='0.3',
+                                              setting='CL')})]
 
 
 class PAV(GeomBase):
@@ -151,9 +158,30 @@ class PAV(GeomBase):
                               * (100 * vertical_tail_t_over_c /
                                  cos(radians(self.vertical_tail_sweep)))
                               ** - 0.49)
+        mass_landing_gear = 20 * len(self.wheel_locations) * 2
 
         return [mass_wing, mass_fuselage,
-                mass_horizontal_tail, mass_vertical_tail]
+                mass_horizontal_tail, mass_vertical_tail, mass_landing_gear]
+
+    # -------------------------------------------------------------------------
+    # Battery related
+    # -------------------------------------------------------------------------
+
+    @Attribute
+    def drag(self):
+        analysis = AvlAnalysis(case_settings=cases)
+        return analysis.lift_over_drag
+
+    @Attribute
+    def battery_energy_density(self):
+        # 200 Wh per kg converted to Joule per kg
+        return 200 * 3600
+
+    @Attribute
+    def battery_discharge_time(self):
+        # The factor 3/2 is included to compensate for slower flight phases
+        # such as take-off and approach
+        return self.range * 1000 / self.velocity * 3 / 2
 
     # -------------------------------------------------------------------------
     # Horizontal tail related
@@ -362,7 +390,7 @@ class PAV(GeomBase):
 
     @Attribute
     def wing_dihedral(self):
-        return 0 if self.wing_location.z > 0 else 2
+        return 5 if self.wing_location.z > 0 else 3
 
     @Attribute
     def wing_location(self):
@@ -437,7 +465,25 @@ class PAV(GeomBase):
     def length_of_skids(self):
         return self.fuselage_length * 0.8
 
-    # ADJUST LATER
+    @Attribute
+    def vertical_skid_profile(self):
+        return '0018'
+
+    @Attribute
+    def vertical_skid_chord(self):
+        return 0.75
+
+    @Attribute
+    def skid_height(self):
+        return min(0.1, 0.9 * self.skid_width)
+
+    @Attribute
+    def skid_width(self):
+        return (1.05 * self.vertical_skid_chord *
+                (float(self.vertical_skid_profile) / 100))
+
+        # ADJUST LATER
+
     @Attribute
     def skid_locations(self):
         return [translate(self.position,
@@ -447,27 +493,56 @@ class PAV(GeomBase):
                           - 0.75 * self.cabin_width
                           + 1.5 * self.cabin_width * index,
                           self.position.Vz,
-                          - (0.5 + 0.2)
-                          * self.cabin_height)
+                          (- (0.5 + 0.2) * self.cabin_height)
+                          if self.wheels_included is False
+                          else - (0.5 + 0.2) * self.cabin_height
+                               + self.wheel_radius + self.vertical_rod_length)
                 for index in range(2)]
 
     # ADJUST THIS LATER
     @Attribute
     def wheel_locations(self):
-        expected_number_of_wheels = self.wing_aspect_ratio # Adjust this!!!!
+        expected_number_of_wheels = self.wing_aspect_ratio  # Adjust this!!!!
         number_of_wheels = (expected_number_of_wheels
                             if expected_number_of_wheels >= 4 else 4)
-        wheels_per_side = ceil(number_of_wheels / 2)
+        wheels_per_side = (ceil(number_of_wheels / 2)
+                           if number_of_wheels * self.wheel_radius
+                              < 0.8 * self.length_of_skids
+                           else ceil(0.8 * self.length_of_skids /
+                                     (2 * self.wheel_radius)))
         left_locations = [translate(self.skid_locations[0],
                                     self.position.Vx,
-                                    index / wheels_per_side
-                                    * self.length_of_skids)
+                                    (index + 0.5) / wheels_per_side
+                                    * self.length_of_skids,
+                                    - self.position.Vy,
+                                    self.horizontal_rod_length
+                                    + self.wheel_width - self.rod_radius / 2,
+                                    self.position.Vz,
+                                    - self.vertical_rod_length)
                           for index in range(wheels_per_side)]
-        right_locations = [translate(left_locations[index],
-                                     self.position.Vy,
-                                     - 2 * left_locations[index].y)
-                           for index in range(len(left_locations))]
-        return left_locations # + right_locations
+        # Only the locations for the wheels on the left skid are returned,
+        # as the wheels on the right skids are simply mirrored
+        return left_locations
+
+    @Attribute
+    def wheel_radius(self):
+        return 0.2
+
+    @Attribute
+    def wheel_width(self):
+        return 0.15
+
+    @Attribute
+    def rod_radius(self):
+        return min(0.03, self.skid_width * 0.4)
+
+    @Attribute
+    def vertical_rod_length(self):
+        return self.wheel_radius * 1.2
+
+    @Attribute
+    def horizontal_rod_length(self):
+        return self.skid_width * 0.7 + self.rod_radius
 
     @Attribute
     def avl_surfaces(self):
@@ -554,6 +629,10 @@ class PAV(GeomBase):
                                      child.index].y / (self.wing_span / 2)))
                                          + self.propeller_radii[child.index]
                                          * tan(radians(self.wing_sweep))),
+                         nacelle_included=
+                         False if child.index == 0
+                                  and len(self.propeller_locations) % 2 == 1
+                         else True,
                          aspect_ratio=3,
                          ratio_hub_to_blade_radius=0.15,
                          leading_edge_sweep=0,
@@ -567,7 +646,7 @@ class PAV(GeomBase):
                          color=self.secondary_colour)
 
     # -------------------------------------------------------------------------
-    # SKIDS AND WHEELS - REMOVE LATER
+    # SKIDS
     # -------------------------------------------------------------------------
 
     @Part
@@ -575,21 +654,30 @@ class PAV(GeomBase):
         return Skid(quantify=2,
                     color=self.secondary_colour,
                     skid_length=self.length_of_skids,
-                    skid_width=0.2,
-                    skid_height=0.1,
-                    skid_connection_profile='0016',
-                    chord_skid_connection=0.6,
+                    skid_width=self.skid_width,
+                    skid_height=self.skid_height,
+                    skid_connection_profile=self.vertical_skid_profile,
+                    chord_skid_connection=self.vertical_skid_chord,
                     # Connect the skid to the horizontal tail
-                    span_skid_connection=self.horizontal_tail.position.z
+                    span_skid_connection=
+                    self.horizontal_tail.position.z
                     + abs(self.skid_locations[child.index].y)
                     * tan(radians(self.horizontal_tail.dihedral))
                     - self.skid_locations[child.index].z,
                     position=self.skid_locations[child.index])
 
+    # -------------------------------------------------------------------------
+    # WHEELS
+    # -------------------------------------------------------------------------
+
     @Part
     def left_wheels(self):
         return Wheels(quantify=len(self.wheel_locations),
-                      position=self.wheel_locations[child.index])
+                      wheel_length=self.wheel_width,
+                      wheel_radius=self.wheel_radius,
+                      position=self.wheel_locations[child.index],
+                      color='black',
+                      suppress=not self.wheels_included)
 
     @Part
     def right_wheels(self):
@@ -597,7 +685,29 @@ class PAV(GeomBase):
                              shape_in=self.left_wheels[child.index].wheel,
                              reference_point=self.position,
                              vector1=self.position.Vx,
-                             vector2=self.position.Vz)
+                             vector2=self.position.Vz,
+                             color='black',
+                             suppress=not self.wheels_included)
+
+    @Part
+    def left_wheel_rods(self):
+        return Rods(quantify=len(self.wheel_locations),
+                    wheel_length=self.wheel_width,
+                    rod_horizontal_length=self.horizontal_rod_length,
+                    rod_vertical_length=self.vertical_rod_length,
+                    position=self.wheel_locations[child.index],
+                    color='silver',
+                    suppress=not self.wheels_included)
+
+    @Part
+    def right_wheel_rods(self):
+        return MirroredShape(quantify=len(self.wheel_locations),
+                             shape_in=self.left_wheel_rods[child.index].rods,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver',
+                             suppress=not self.wheels_included)
 
     # -------------------------------------------------------------------------
     # AVL part for analysis
@@ -608,8 +718,10 @@ class PAV(GeomBase):
         return avl.Configuration(name='pav',
                                  reference_area=self.wing_area,
                                  reference_span=self.wing_span,
-                                 reference_chord=1.2,
-                                 reference_point=self.main_wing.position.point,
+                                 reference_chord=
+                                 self.main_wing.mean_aerodynamic_chord,
+                                 reference_point=
+                                 self.main_wing.profile_locations[0],
                                  surfaces=self.avl_surfaces,
                                  mach=self.cruise_mach_number)
 
