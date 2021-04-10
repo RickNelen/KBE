@@ -78,7 +78,7 @@ if __name__ == '__main__':
     # analysis = AvlAnalysis(aircraft=pav,
     #                        case_settings=cases)
 
-    # display(pav)
+    display(pav)
     print(pav.battery_mass)
     # print(analysis.lift_over_drag)
     #
