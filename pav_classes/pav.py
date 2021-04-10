@@ -31,15 +31,17 @@ sigma_rotor = 0.070  # fixed
 Mtip = 0.6  # fixed, higher Mach numbers for the rotor tips lead to stall
 DL_max = 1500  # fixed
 
+design_lift_coefficient = 0.5
+
 
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
 
 
-cases = [('fixed_aoa', {'alpha': 3}),
-         ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
-                                              value='0.3',
-                                              setting='CL')})]
+cases = [('fixed_cl',
+          {'alpha': avl.Parameter(name='alpha',
+                                  value=str(design_lift_coefficient),
+                                  setting='CL')})]
 
 
 class PAV(GeomBase):
@@ -62,7 +64,7 @@ class PAV(GeomBase):
 
     @Input
     def design_cl(self):
-        return 0.5
+        return design_lift_coefficient
 
     @Input
     def cruise_altitude_in_feet(self):
@@ -168,9 +170,22 @@ class PAV(GeomBase):
     # -------------------------------------------------------------------------
 
     @Attribute
-    def drag(self):
-        analysis = AvlAnalysis(case_settings=cases)
-        return analysis.lift_over_drag
+    def propulsive_efficiency(self):
+        return 0.9
+
+    @Attribute
+    def friction_drag_coefficient(self):
+        return 0.02
+
+    @Attribute
+    def induced_drag_coefficient(self):
+        analysis = AvlAnalysis(aircraft=self,
+                               case_settings=cases)
+        return analysis.induced_drag[cases[0][0]]
+
+    @Attribute
+    def total_drag_coefficient(self):
+        return self.friction_drag_coefficient + self.induced_drag_coefficient
 
     @Attribute
     def battery_energy_density(self):
@@ -182,6 +197,16 @@ class PAV(GeomBase):
         # The factor 3/2 is included to compensate for slower flight phases
         # such as take-off and approach
         return self.range * 1000 / self.velocity * 3 / 2
+
+    @Attribute
+    def battery_power(self):
+        return (0.5 * self.cruise_density * self.velocity ** 3 * self.wing_area
+                * self.total_drag_coefficient / self.propulsive_efficiency)
+
+    @Attribute
+    def battery_mass(self):
+        return (self.battery_power * self.battery_discharge_time /
+                self.battery_energy_density)
 
     # -------------------------------------------------------------------------
     # Horizontal tail related

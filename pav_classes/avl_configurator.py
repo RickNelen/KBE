@@ -11,6 +11,11 @@ class AvlAnalysis(avl.Interface):
         return self.aircraft.avl_configuration
 
     @Attribute
+    def induced_drag(self):
+        return {case_name: result['Totals']['CDtot']
+                for case_name, result in self.results.items()}
+
+    @Attribute
     def lift_over_drag(self):
         return {case_name: result['Totals']['CLtot']
                 / result['Totals']['CDtot']
