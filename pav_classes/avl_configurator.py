@@ -16,9 +16,8 @@ class AvlAnalysis(avl.Interface):
                 for case_name, result in self.results.items()}
 
     @Attribute
-    def lift_over_drag(self):
+    def lift(self):
         return {case_name: result['Totals']['CLtot']
-                / result['Totals']['CDtot']
                 for case_name, result in self.results.items()}
 
     @Part

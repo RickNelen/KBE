@@ -91,10 +91,36 @@ class PAV(GeomBase):
 
     @Attribute
     def pav_components(self):
-        return self.find_children(lambda o: isinstance(o, (LoftedSolid,
-                                                           RevolvedSolid,
-                                                           RotatedShape)))
+        names = ['main_wing', 'horizontal_tail', 'vertical_tail',
+                 'fuselage', 'propeller', 'skid', 'wheel']
 
+        right_wing = self.main_wing.surface
+        # left_wing = self.main_wing.mirrored
+        right_horizontal_tail = self.horizontal_tail.surface
+        # left_horizontal_tail = self.horizontal_tail.mirrored
+        right_vertical_tail = self.skids[1].vertical_skid.surface
+        left_vertical_tail = self.skids[0].vertical_skid.surface
+        fuselage = self.fuselage.fuselage_cabin
+        propeller = [self.cruise_propellers[index].hub_cone
+                     for index in range(len(self.propeller_locations))]
+        skid = [self.skids[index].skid
+                for index in range(len(self.skid_locations))]
+        left_wheels = [self.left_wheels[index].wheel
+                       for index in range(len(self.wheel_locations))]
+        right_wheels = [self.right_wheels[index]
+                        for index in range(len(self.wheel_locations))]
+        wheels = left_wheels + right_wheels
+
+        return ([right_wing] + [right_horizontal_tail]
+                + [right_vertical_tail]
+                + [left_vertical_tail] + [fuselage] + propeller
+                + skid + wheels)
+        # return self.find_children(lambda o: isinstance(o, (LoftedSolid,
+        #                                                    RevolvedSolid,
+        #                                                    RotatedShape)))
+
+    # BE CAREFUL! SINCE THE MIRRORED SURFACES CAN'T BE USED, THE C.G. OF THE
+    # WING AND HORIZONTAL TAIL IS NOT ON THE CENTRE LINE OF THE AIRCRAFT
     @Attribute
     def center_of_gravity_of_components(self):
         return [component.cog for component in self.pav_components]
@@ -162,8 +188,14 @@ class PAV(GeomBase):
                               ** - 0.49)
         mass_landing_gear = 20 * len(self.wheel_locations) * 2
 
-        return [mass_wing, mass_fuselage,
-                mass_horizontal_tail, mass_vertical_tail, mass_landing_gear]
+        return [{'main_wing': mass_wing,
+                 'horizontal_tail': mass_horizontal_tail,
+                 'vertical_tail': mass_vertical_tail,
+                 'wheels': mass_landing_gear,
+                 'fuselage': mass_fuselage}]
+
+        # return [mass_wing, mass_fuselage,
+        #         mass_horizontal_tail, mass_vertical_tail, mass_landing_gear]
 
     # -------------------------------------------------------------------------
     # Battery related
