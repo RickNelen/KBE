@@ -80,6 +80,7 @@ if __name__ == '__main__':
 
     display(pav)
     print(pav.pav_components)
+    print(pav.pav_components[10].area)
     # print(analysis.lift_over_drag)
     #
     # pav.step_parts.write()

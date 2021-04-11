@@ -98,8 +98,8 @@ class PAV(GeomBase):
         # left_wing = self.main_wing.mirrored
         right_horizontal_tail = self.horizontal_tail.surface
         # left_horizontal_tail = self.horizontal_tail.mirrored
-        right_vertical_tail = self.skids[1].vertical_skid.surface
-        left_vertical_tail = self.skids[0].vertical_skid.surface
+        right_vertical_tail = self.vertical_tail[1].surface
+        # left_vertical_tail = self.skids[0].vertical_skid.surface
         fuselage = self.fuselage.fuselage_cabin
         propeller = [self.cruise_propellers[index].hub_cone
                      for index in range(len(self.propeller_locations))]
@@ -109,7 +109,7 @@ class PAV(GeomBase):
                        for index in range(len(self.wheel_locations))]
         right_wheels = [self.right_wheels[index]
                         for index in range(len(self.wheel_locations))]
-        wheels = left_wheels + right_wheels
+        wheels = left_wheels  # + right_wheels
 
         # return ([right_wing] + [right_horizontal_tail]
         #         + [right_vertical_tail]
@@ -119,7 +119,7 @@ class PAV(GeomBase):
         return {'main_wing': right_wing,
                 'horizontal_tail': right_horizontal_tail,
                 'vertical_tail': right_vertical_tail,
-                'wheels': wheels,
+                'wheels': wheels + wheels,
                 'fuselage': fuselage,
                 'skids': skid,
                 'propeller': propeller}
@@ -127,26 +127,44 @@ class PAV(GeomBase):
         #                                                    RevolvedSolid,
         #                                                    RotatedShape)))
 
-    # BE CAREFUL! SINCE THE MIRRORED SURFACES CAN'T BE USED, THE C.G. OF THE
-    # WING AND HORIZONTAL TAIL IS NOT ON THE CENTRE LINE OF THE AIRCRAFT
-    @Attribute
-    def center_of_gravity_of_non_mirrored_components(self):
-        return [self.pav_components[component].cog for component in
-                self.pav_components]
-
+    # BE CAREFUL! THE MASS OF PAYLOAD AND BATTERY STILL HAS TO BE ADDED!
     @Attribute
     def center_of_gravity_of_components(self):
-        basic = [pos.y for pos in
-                 self.center_of_gravity_of_non_mirrored_components]
-        basic[0] = 0
-        return basic
+        dictionary = {}
+        for component in self.pav_components:
+            if type(self.pav_components[component]) is not list:
+                name = component
+                value = [self.pav_components[component].cog.x,
+                         self.pav_components[component].cog.y,
+                         self.pav_components[component].cog.z]
+                if component == 'main_wing' or 'horizontal_tail' \
+                        or 'vertical_tail':
+                    value[1] = 0
+                library = {name: value}
+                dictionary = {**dictionary, **library}
+            else:
+                values = []
+                for index in range(len(self.pav_components[component])):
+                    value = [self.pav_components[component][index].cog.x,
+                             self.pav_components[component][index].cog.y,
+                             self.pav_components[component][index].cog.z, ]
+                    if component == 'wheels' \
+                            and index >= len(
+                        self.pav_components[component]) / 2:
+                        value[1] = - value[1]
+                    values.append(value)
+                name = component
+                library = {name: values}
+                dictionary = {**dictionary, **library}
+
+        return dictionary
 
     @Attribute
     def mass_of_components(self):
         horizontal_tail_t_over_c = float(
             self.horizontal_tail.airfoils[0]) / 100
         vertical_tail_t_over_c = float(
-            self.vertical_tail.airfoils[0]) / 100
+            self.vertical_tail[0].airfoils[0]) / 100
 
         # These tail volume coefficients assume general aviation - twin
         # engine aircraft; CHECK ONCE MORE IF THIS IS WORKING WELL! (see
@@ -178,10 +196,10 @@ class PAV(GeomBase):
 
                          # THIS LINE TRIES TO GET THE AREA OF THE FUSELAGE BUT
                          # DOES NOT WORK YET
-                         * (self.pav_components[10].area / (ft_to_m ** 2))
-                         ** 0.302
+                         # * (self.pav_components[10].area / (ft_to_m ** 2))
+                         # ** 0.302
                          * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
-        print(self.pav_components[10].area)
+
         mass_horizontal_tail = (0.016 *
                                 (self.maximum_take_off_weight / lbs_to_kg)
                                 ** 0.414
@@ -209,10 +227,53 @@ class PAV(GeomBase):
                 'horizontal_tail': mass_horizontal_tail,
                 'vertical_tail': mass_vertical_tail,
                 'wheels': mass_landing_gear,
-                'fuselage': mass_fuselage}
+                'fuselage': mass_fuselage,
+                'skids': 50,
+                'propeller': 40}
 
         # return [mass_wing, mass_fuselage,
         #         mass_horizontal_tail, mass_vertical_tail, mass_landing_gear]
+
+    @Attribute
+    def mass(self):
+        mass = 0
+        for component in self.center_of_gravity_of_components:
+            if type(self.center_of_gravity_of_components[component]) \
+                    is not list:
+                mass += self.mass_of_components[component]
+            else:
+                mass += (self.mass_of_components[component]
+                         * len(self.center_of_gravity_of_components[
+                                   component]))
+        return mass
+
+    @Attribute
+    def centre_of_gravity(self):
+        count = 0
+        x_value = 0
+        y_value = 0
+        z_value = 0
+        for component in self.center_of_gravity_of_components:
+            if type(self.pav_components[component]) is not list:
+                count += 1
+                x_value += (self.pav_components[component].cog.x
+                            * self.mass_of_components[component])
+                y_value += (self.pav_components[component].cog.y
+                            * self.mass_of_components[component])
+                z_value += (self.pav_components[component].cog.z
+                            * self.mass_of_components[component])
+            else:
+                for index in range(len(self.pav_components[component])):
+                    count += 1
+                    x_value += (self.pav_components[component][index].cog.x
+                                * self.mass_of_components[component])
+                    y_value += (self.pav_components[component][index].cog.y
+                                * self.mass_of_components[component])
+                    z_value += (self.pav_components[component][index].cog.z
+                                * self.mass_of_components[component])
+        return [x_value / self.mass,
+                y_value / self.mass,
+                z_value / self.mass]
 
     # -------------------------------------------------------------------------
     # Battery related
@@ -258,27 +319,62 @@ class PAV(GeomBase):
                 self.battery_energy_density)
 
     # -------------------------------------------------------------------------
-    # Horizontal tail related
+    # Tail related
     # -------------------------------------------------------------------------
 
     # ADJUST THIS THING !!!!!!!!!!
 
     @Attribute
     def horizontal_tail_area(self):
-        return 10
+        return 4
 
     @Attribute
     def vertical_tail_area(self):
-        return 8
+        return 2
 
     # ADJUST THIS THING !!!!!!!!!!
     @Attribute
     def horizontal_tail_sweep(self):
-        return 30
+        return 20
 
     @Attribute
     def vertical_tail_sweep(self):
-        return 20
+        root_position = (self.skid_locations[0].x + self.length_of_skids
+                         - self.vertical_tail_root_chord)
+        tip_position = (self.horizontal_tail.position.x
+                        + abs(self.skid_locations[0].y)
+                        * tan(radians(self.horizontal_tail_sweep)))
+        return degrees(atan((tip_position - root_position)
+                            / self.vertical_tail_span))
+
+    @Attribute
+    def vertical_tail_tip_chord(self):
+        return chord_length(self.horizontal_tail.root_chord,
+                            self.horizontal_tail.tip_chord,
+                            abs(self.skid_locations[0].y)
+                            / (self.horizontal_tail.span / 2))
+
+    @Attribute
+    def vertical_tail_span(self):
+        return (self.horizontal_tail.position.z
+                + abs(self.skid_locations[0].y)
+                * tan(radians(self.horizontal_tail.dihedral))
+                - self.skid_locations[0].z)
+
+    @Attribute
+    def vertical_tail_root_chord(self):
+        return (2 * (self.vertical_tail_area / 2)
+                / self.vertical_tail_span - self.vertical_tail_tip_chord)
+
+    @Attribute
+    def vertical_tail_taper_ratio(self):
+        return self.vertical_tail_tip_chord / self.vertical_tail_root_chord
+
+    @Attribute
+    def vertical_tail_aspect_ratio(self):
+        return (self.vertical_tail_span /
+                (self.vertical_tail_root_chord *
+                 (1 + self.vertical_tail_taper_ratio) / 2))
 
     # -------------------------------------------------------------------------
     # Propeller related
@@ -543,9 +639,9 @@ class PAV(GeomBase):
     def vertical_skid_profile(self):
         return '0018'
 
-    @Attribute
-    def vertical_skid_chord(self):
-        return 0.75
+    # @Attribute
+    # def vertical_skid_chord(self):
+    #     return 0.75
 
     @Attribute
     def skid_height(self):
@@ -553,7 +649,7 @@ class PAV(GeomBase):
 
     @Attribute
     def skid_width(self):
-        return (1.05 * self.vertical_skid_chord *
+        return (1.05 * self.vertical_tail_root_chord *
                 (float(self.vertical_skid_profile) / 100))
 
         # ADJUST LATER
@@ -622,6 +718,17 @@ class PAV(GeomBase):
     def avl_surfaces(self):
         return self.find_children(lambda o: isinstance(o, avl.Surface))
 
+    # -------------------------------------------------------------------------
+    # PARTS
+    # -------------------------------------------------------------------------
+
+    # Show a point indicating the c.g.
+    @Part
+    def center_of_gravity_point(self):
+        return Point(x=self.centre_of_gravity[0],
+                     y=self.centre_of_gravity[1],
+                     z=self.centre_of_gravity[2])
+
     @Part
     def main_wing(self):
         return LiftingSurface(name='main_wing',
@@ -644,10 +751,11 @@ class PAV(GeomBase):
                               number_of_profiles=2,
                               airfoils=['2218', '2212'],
                               is_mirrored=True,
-                              span=self.wing_span / 3,
-                              aspect_ratio=self.wing_aspect_ratio,
+                              span=sqrt(self.wing_aspect_ratio
+                                        * self.horizontal_tail_area),
+                              aspect_ratio=self.wing_aspect_ratio * 0.7,
                               taper_ratio=0.4,
-                              sweep=self.wing_sweep + 5,
+                              sweep=self.horizontal_tail_sweep,
                               incidence_angle=0,
                               twist=0,
                               dihedral=3,
@@ -664,22 +772,10 @@ class PAV(GeomBase):
                               airfoils=[self.vertical_skid_profile],
                               is_mirrored=False,
                               # Connect the skid to the horizontal tail
-                              span=self.horizontal_tail.position.z
-                                   + abs(self.skid_locations[child.index].y)
-                                   * tan(
-                                  radians(self.horizontal_tail.dihedral))
-                                   - self.skid_locations[child.index].z,
-                              aspect_ratio=(self.horizontal_tail.position.z
-                                            + abs(
-                                          self.skid_locations[
-                                              child.index].y)
-                                            * tan(radians(
-                                          self.horizontal_tail.dihedral))
-                                            - self.skid_locations[
-                                                child.index].z)
-                                           / self.vertical_skid_chord,
-                              taper_ratio=1,
-                              sweep=self.wing_sweep,
+                              span=self.vertical_tail_span,
+                              aspect_ratio=self.vertical_tail_aspect_ratio,
+                              taper_ratio=self.vertical_tail_taper_ratio,
+                              sweep=self.vertical_tail_sweep,
                               incidence_angle=0,
                               twist=0,
                               dihedral=0,
@@ -687,7 +783,7 @@ class PAV(GeomBase):
                                   self.skids[child.index].position,
                                   self.position.Vx,
                                   self.length_of_skids -
-                                  3 / 4 * self.vertical_skid_chord),
+                                  1 * self.vertical_tail_root_chord),
                                   self.position.Vx),
                               color=self.primary_colour)
 
