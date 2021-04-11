@@ -79,7 +79,7 @@ if __name__ == '__main__':
     #                        case_settings=cases)
 
     display(pav)
-    # print(pav.center_of_gravity_of_components)
+    print(pav.pav_components)
     # print(analysis.lift_over_drag)
     #
     # pav.step_parts.write()

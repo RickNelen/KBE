@@ -111,10 +111,18 @@ class PAV(GeomBase):
                         for index in range(len(self.wheel_locations))]
         wheels = left_wheels + right_wheels
 
-        return ([right_wing] + [right_horizontal_tail]
-                + [right_vertical_tail]
-                + [left_vertical_tail] + [fuselage] + propeller
-                + skid + wheels)
+        # return ([right_wing] + [right_horizontal_tail]
+        #         + [right_vertical_tail]
+        #         + [left_vertical_tail] + [fuselage] + propeller
+        #         + skid + wheels)
+
+        return {'main_wing': right_wing,
+                'horizontal_tail': right_horizontal_tail,
+                'vertical_tail': right_vertical_tail,
+                'wheels': wheels,
+                'fuselage': fuselage,
+                'skids': skid,
+                'propeller': propeller}
         # return self.find_children(lambda o: isinstance(o, (LoftedSolid,
         #                                                    RevolvedSolid,
         #                                                    RotatedShape)))
@@ -122,8 +130,16 @@ class PAV(GeomBase):
     # BE CAREFUL! SINCE THE MIRRORED SURFACES CAN'T BE USED, THE C.G. OF THE
     # WING AND HORIZONTAL TAIL IS NOT ON THE CENTRE LINE OF THE AIRCRAFT
     @Attribute
+    def center_of_gravity_of_non_mirrored_components(self):
+        return [self.pav_components[component].cog for component in
+                self.pav_components]
+
+    @Attribute
     def center_of_gravity_of_components(self):
-        return [component.cog for component in self.pav_components]
+        basic = [pos.y for pos in
+                 self.center_of_gravity_of_non_mirrored_components]
+        basic[0] = 0
+        return basic
 
     @Attribute
     def mass_of_components(self):
@@ -165,6 +181,7 @@ class PAV(GeomBase):
                          * (self.pav_components[10].area / (ft_to_m ** 2))
                          ** 0.302
                          * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
+        print(self.pav_components[10].area)
         mass_horizontal_tail = (0.016 *
                                 (self.maximum_take_off_weight / lbs_to_kg)
                                 ** 0.414
@@ -188,11 +205,11 @@ class PAV(GeomBase):
                               ** - 0.49)
         mass_landing_gear = 20 * len(self.wheel_locations) * 2
 
-        return [{'main_wing': mass_wing,
-                 'horizontal_tail': mass_horizontal_tail,
-                 'vertical_tail': mass_vertical_tail,
-                 'wheels': mass_landing_gear,
-                 'fuselage': mass_fuselage}]
+        return {'main_wing': mass_wing,
+                'horizontal_tail': mass_horizontal_tail,
+                'vertical_tail': mass_vertical_tail,
+                'wheels': mass_landing_gear,
+                'fuselage': mass_fuselage}
 
         # return [mass_wing, mass_fuselage,
         #         mass_horizontal_tail, mass_vertical_tail, mass_landing_gear]
@@ -641,19 +658,37 @@ class PAV(GeomBase):
 
     @Part
     def vertical_tail(self):
-        return LiftingSurface(name='vertical_tail',
+        return LiftingSurface(name='vertical_tails',
+                              quantify=len(self.skid_locations),
                               number_of_profiles=2,
-                              airfoils=['0012', '0012'],
+                              airfoils=[self.vertical_skid_profile],
                               is_mirrored=False,
-                              span=self.wing_span / 8,
-                              aspect_ratio=self.wing_aspect_ratio / 4,
-                              taper_ratio=0.4,
-                              sweep=self.wing_sweep + 20,
+                              # Connect the skid to the horizontal tail
+                              span=self.horizontal_tail.position.z
+                                   + abs(self.skid_locations[child.index].y)
+                                   * tan(
+                                  radians(self.horizontal_tail.dihedral))
+                                   - self.skid_locations[child.index].z,
+                              aspect_ratio=(self.horizontal_tail.position.z
+                                            + abs(
+                                          self.skid_locations[
+                                              child.index].y)
+                                            * tan(radians(
+                                          self.horizontal_tail.dihedral))
+                                            - self.skid_locations[
+                                                child.index].z)
+                                           / self.vertical_skid_chord,
+                              taper_ratio=1,
+                              sweep=self.wing_sweep,
                               incidence_angle=0,
                               twist=0,
                               dihedral=0,
-                              position=rotate90(
-                                  self.horizontal_tail.position, 'x'),
+                              position=rotate90(translate(
+                                  self.skids[child.index].position,
+                                  self.position.Vx,
+                                  self.length_of_skids -
+                                  3 / 4 * self.vertical_skid_chord),
+                                  self.position.Vx),
                               color=self.primary_colour)
 
     @Part(in_tree=True)
@@ -713,14 +748,14 @@ class PAV(GeomBase):
                     skid_length=self.length_of_skids,
                     skid_width=self.skid_width,
                     skid_height=self.skid_height,
-                    skid_connection_profile=self.vertical_skid_profile,
-                    chord_skid_connection=self.vertical_skid_chord,
-                    # Connect the skid to the horizontal tail
-                    span_skid_connection=
-                    self.horizontal_tail.position.z
-                    + abs(self.skid_locations[child.index].y)
-                    * tan(radians(self.horizontal_tail.dihedral))
-                    - self.skid_locations[child.index].z,
+                    # skid_connection_profile=self.vertical_skid_profile,
+                    # chord_skid_connection=self.vertical_skid_chord,
+                    # # Connect the skid to the horizontal tail
+                    # span_skid_connection=
+                    # self.horizontal_tail.position.z
+                    # + abs(self.skid_locations[child.index].y)
+                    # * tan(radians(self.horizontal_tail.dihedral))
+                    # - self.skid_locations[child.index].z,
                     position=self.skid_locations[child.index])
 
     # -------------------------------------------------------------------------
