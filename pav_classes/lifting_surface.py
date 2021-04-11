@@ -176,7 +176,7 @@ class LiftingSurface(GeomBase):
     def surface(self):
         return LoftedSolid(profiles=[profile.curve for profile in
                                      self.profiles],
-                           ruled=False)
+                           ruled=True)
 
     @Part
     def mirrored(self):
