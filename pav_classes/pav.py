@@ -5,6 +5,7 @@ from parapy.geom import *
 from parapy.core import *
 from parapy.exchange import STEPWriter
 import kbeutils.avl as avl
+import warnings
 
 from .fuselage import Fuselage
 from .lifting_surface import LiftingSurface
@@ -34,6 +35,14 @@ DL_max = 1500  # fixed
 design_lift_coefficient = 0.5
 
 
+def generate_warning(warning_header, message):
+    from tkinter import Tk, mainloop, X, messagebox
+
+    window = Tk()
+    window.withdraw()
+    messagebox.showwarning(warning_header, message)
+
+
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
 
@@ -55,9 +64,9 @@ class PAV(GeomBase):
     # Quality level can be 1 for economy or 2 for business
     quality_level = Input(1)
     # Should wheels be added to allow for driving? True or False
-    wheels_included = Input(False)
+    wheels_included = Input(True)
     # The cruise velocity can be given in [km/hr]
-    cruise_velocity = Input(200)
+    set_cruise_velocity = Input(400)
     # The colours that are used for the visualisation
     primary_colour = Input('white')
     secondary_colour = Input('red')
@@ -84,6 +93,18 @@ class PAV(GeomBase):
     def length_of_fuselage_tail(self):
         return (1.5 if self.number_of_passengers <= 4
                 else 1 + self.number_of_seats_abreast / 2)
+
+    # Checks
+
+    @Attribute
+    def cruise_velocity(self):
+        if self.set_cruise_velocity > 300:
+            message = 'The cruise velocity is set too high. The cruise ' \
+                      'velocity is set to 300 km/h.'
+            generate_warning('Warning: value changed', message)
+            return 300
+        else:
+            return self.set_cruise_velocity
 
     # -------------------------------------------------------------------------
     # Centre of gravity related
@@ -196,8 +217,9 @@ class PAV(GeomBase):
 
                          # THIS LINE TRIES TO GET THE AREA OF THE FUSELAGE BUT
                          # DOES NOT WORK YET
-                         # * (self.pav_components[10].area / (ft_to_m ** 2))
-                         # ** 0.302
+                         * (self.pav_components['fuselage'].area
+                            / (ft_to_m ** 2))
+                         ** 0.302
                          * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
 
         mass_horizontal_tail = (0.016 *
@@ -221,7 +243,7 @@ class PAV(GeomBase):
                               * (100 * vertical_tail_t_over_c /
                                  cos(radians(self.vertical_tail_sweep)))
                               ** - 0.49)
-        mass_landing_gear = 20 * len(self.wheel_locations) * 2
+        mass_landing_gear = 20
 
         return {'main_wing': mass_wing,
                 'horizontal_tail': mass_horizontal_tail,
@@ -238,8 +260,7 @@ class PAV(GeomBase):
     def mass(self):
         mass = 0
         for component in self.center_of_gravity_of_components:
-            if type(self.center_of_gravity_of_components[component]) \
-                    is not list:
+            if type(self.pav_components[component]) is not list:
                 mass += self.mass_of_components[component]
             else:
                 mass += (self.mass_of_components[component]
@@ -256,20 +277,20 @@ class PAV(GeomBase):
         for component in self.center_of_gravity_of_components:
             if type(self.pav_components[component]) is not list:
                 count += 1
-                x_value += (self.pav_components[component].cog.x
+                x_value += (self.center_of_gravity_of_components[component][0]
                             * self.mass_of_components[component])
-                y_value += (self.pav_components[component].cog.y
+                y_value += (self.center_of_gravity_of_components[component][1]
                             * self.mass_of_components[component])
-                z_value += (self.pav_components[component].cog.z
+                z_value += (self.center_of_gravity_of_components[component][2]
                             * self.mass_of_components[component])
             else:
                 for index in range(len(self.pav_components[component])):
                     count += 1
-                    x_value += (self.pav_components[component][index].cog.x
+                    x_value += (self.center_of_gravity_of_components[component][index][0]
                                 * self.mass_of_components[component])
-                    y_value += (self.pav_components[component][index].cog.y
+                    y_value += (self.center_of_gravity_of_components[component][index][1]
                                 * self.mass_of_components[component])
-                    z_value += (self.pav_components[component][index].cog.z
+                    z_value += (self.center_of_gravity_of_components[component][index][2]
                                 * self.mass_of_components[component])
         return [x_value / self.mass,
                 y_value / self.mass,
@@ -326,7 +347,7 @@ class PAV(GeomBase):
 
     @Attribute
     def horizontal_tail_area(self):
-        return 4
+        return 3
 
     @Attribute
     def vertical_tail_area(self):
@@ -525,10 +546,18 @@ class PAV(GeomBase):
         mach = self.intended_velocity / self.cruise_speed_of_sound
         return mach if mach < 0.6 else 0.6
 
+    # HOW DO WE TREAT THE WEIGHT ESTIMATIONS?
+
     @Attribute
+    def expected_maximum_take_off_weight(self):
+        return ((self.mass + self.battery_mass
+                 + self.number_of_passengers * 70) * g)
+
+    @Input
     def maximum_take_off_weight(self):
         # MTOW in Newtons
-        return (2000 + self.number_of_passengers * 70) * g
+        return ((3000 + 500
+                 + self.number_of_passengers * 70) * g)
 
     # -------------------------------------------------
     # TO DO: implement correct formula!!!!

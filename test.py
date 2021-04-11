@@ -65,7 +65,7 @@ if __name__ == '__main__':
               maximum_span=max_span,
               quality_level=quality_choice,
               wheels_included=wheels_choice,
-              cruise_velocity=cruise_speed,
+              set_cruise_velocity=cruise_speed,
               primary_colour=primary_colour_in,
               secondary_colour=secondary_colour_in,
               name='PAV')
@@ -80,7 +80,6 @@ if __name__ == '__main__':
 
     display(pav)
     print(pav.pav_components)
-    print(pav.pav_components[10].area)
     # print(analysis.lift_over_drag)
     #
     # pav.step_parts.write()
