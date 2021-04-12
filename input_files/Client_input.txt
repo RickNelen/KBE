@@ -10,5 +10,5 @@ Maximum span in m:		11.6
 Quality level: 2
 Wheels:				yes
 Cruise velocity in km/h:	400
-Primary colour:		yellow
+Primary colour:		white
 Secondary colour:	 red

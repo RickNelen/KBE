@@ -43,19 +43,21 @@ class Propeller(GeomBase):
 
     @Input
     def chord_factor(self):
-        hub = ([0.2 * self.propeller_radius / self.aspect_ratio]
+        hub = ([0.2]
                * int(ceil(self.hub_base_radius / self.propeller_radius
                           * self.number_of_blade_sections)))
-        blade = [self.propeller_radius / self.aspect_ratio * (0.2 + 2.5
-                                                              * (sqrt(
-                    index / self.number_of_blade_sections -
-                    self.hub_base_radius / self.propeller_radius)
-                                                                 - 1.3 * (
-                                                                         index / self.number_of_blade_sections -
-                                                                         self.hub_base_radius / self.propeller_radius)
-                                                                 ** 1.5))
+        blade = [(0.2 + 2.5 * (sqrt(index / self.number_of_blade_sections
+                                    - self.hub_base_radius
+                                    / self.propeller_radius)
+                               - 1.1 * (index / self.number_of_blade_sections
+                                        - self.hub_base_radius
+                                        / self.propeller_radius) ** 1.5))
                  for index in range(len(hub), self.number_of_blade_sections)]
         return hub + blade
+
+    @Input
+    def hub_length(self):
+        return self.hub_base_radius * 1
 
     # -------------------------------------------------------------------------
     # ATTRIBUTES
@@ -75,9 +77,9 @@ class Propeller(GeomBase):
     def propeller_radius(self):
         return self.blade_radius if self.blade_radius < 1.8 else 1.8
 
-    @Attribute
-    def hub_length(self):
-        return self.hub_base_radius * 1.5
+    # @Attribute
+    # def hub_length(self):
+    #     return self.hub_base_radius * 1.5
 
     @Attribute
     def point_locations(self):
@@ -153,7 +155,7 @@ class Propeller(GeomBase):
                               position=
                               rotate(translate(self.position,
                                                self.position.Vz,
-                                               self.hub_length / 3),
+                                               self.hub_length * 2 / 3),
                                      self.position.Vy,
                                      radians(self.blade_setting_angle)))
 
