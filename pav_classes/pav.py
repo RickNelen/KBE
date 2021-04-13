@@ -819,13 +819,37 @@ class PAV(GeomBase):
                           self.vertical_position_of_skids)
                 for index in range(2)]
 
+    # Used to subtract the propeller cones from the skids
+    @Attribute
+    def arrange_skids(self):
+        first_skid = [self.vtol_propellers[index].hub_cone
+                      for index in range(int(self.number_of_vtol_propellers
+                                             / 2))]
+        second_skid = [self.vtol_propellers[index].hub_cone
+                       for index in range(int(self.number_of_vtol_propellers
+                                              / 2),
+                                          self.number_of_vtol_propellers)]
+        return [first_skid, second_skid]
+
+    @Attribute
+    def arrange_struts(self):
+        first_skid = [self.left_wheel_rods[index].rod_vertical
+                      for index in range(int(self.number_of_wheels
+                                             / 2))]
+        second_skid = [self.right_wheel_rods[index - int(
+            self.number_of_wheels / 2)]
+                       for index in range(int(self.number_of_wheels
+                                              / 2),
+                                          self.number_of_wheels)]
+        return [first_skid, second_skid]
+
     # -------------------------------------------------------------------------
     # Connections
     # -------------------------------------------------------------------------
 
     @Attribute
     def front_connection_chord(self):
-        return (self.skid_height * 0.95
+        return (self.skid_height * 0.9
                 / (float(self.vertical_skid_profile) / 100))
 
     @Attribute
@@ -862,13 +886,18 @@ class PAV(GeomBase):
     # -------------------------------------------------------------------------
 
     # ADJUST THIS LATER
+
+    @Attribute
+    def number_of_wheels(self):
+        expected_number_of_wheels = self.wing_aspect_ratio  # Adjust this!!!!
+        number_of_wheels = (2 * ceil(expected_number_of_wheels / 2)
+                            if expected_number_of_wheels >= 4 else 4)
+        return number_of_wheels
+
     @Attribute
     def wheel_locations(self):
-        expected_number_of_wheels = self.wing_aspect_ratio  # Adjust this!!!!
-        number_of_wheels = (expected_number_of_wheels
-                            if expected_number_of_wheels >= 4 else 4)
-        wheels_per_side = (ceil(number_of_wheels / 2)
-                           if number_of_wheels * self.wheel_radius
+        wheels_per_side = (int(self.number_of_wheels / 2)
+                           if self.number_of_wheels * self.wheel_radius
                               < 0.8 * self.length_of_skids[0]
                            else ceil(0.8 * self.length_of_skids[0] /
                                      (2 * self.wheel_radius)))
@@ -1057,11 +1086,42 @@ class PAV(GeomBase):
                          position=self.vtol_propeller_locations[child.index],
                          color=self.secondary_colour)
 
+    # @Part
+    # def vtol_hubs(self):
+    #     return SubtractedSolid(quantify=self.number_of_vtol_propellers,
+    #                            shape_in=self.vtol_propellers_reference[
+    #                                child.index].hub_cone,
+    #                            tool=
+    #                            self.skids[round(
+    #                                child.index
+    #                                / self.number_of_vtol_propellers)].skid)
+    #
+    # @Part
+    # def vtol_propellers(self):
+    #     return Propeller(name='VTOL_propellers',
+    #                      quantify=self.number_of_vtol_propellers,
+    #                      number_of_blades=4,
+    #                      blade_radius=self.vtol_propeller_radius,
+    #                      hub_length=1.5 * self.skid_height,
+    #                      hide_hub=True,
+    #                      nacelle_included=False,
+    #                      aspect_ratio=6,
+    #                      ratio_hub_to_blade_radius=
+    #                      min(0.2, 0.9 * (self.skid_width / 2)
+    #                          / self.vtol_propeller_radius),
+    #                      leading_edge_sweep=0,
+    #                      blade_setting_angle=30,
+    #                      blade_outwash=25,
+    #                      number_of_blade_sections=40,
+    #                      blade_thickness=50,
+    #                      position=self.vtol_propeller_locations[child.index],
+    #                      color=self.secondary_colour)
+
     # -------------------------------------------------------------------------
     # SKIDS
     # -------------------------------------------------------------------------
 
-    @Part
+    @Part(in_tree=False)
     def skids(self):
         return Skid(quantify=2,
                     color=self.secondary_colour,
@@ -1077,6 +1137,13 @@ class PAV(GeomBase):
                     # * tan(radians(self.horizontal_tail.dihedral))
                     # - self.skid_locations[child.index].z,
                     position=self.skid_locations[child.index])
+
+    @Part
+    def landing_skids(self):
+        return SubtractedSolid(quantify=2,
+                               shape_in=self.skids[child.index].skid,
+                               tool=self.arrange_skids[child.index])
+                               # self.arrange_struts[child.index]])
 
     @Part
     def right_front_connection(self):
@@ -1135,11 +1202,20 @@ class PAV(GeomBase):
                     position=self.wheel_locations[child.index],
                     color='silver',
                     suppress=not self.wheels_included)
+    #
+    # @Part
+    # def left_struts(self):
+    #     return SubtractedSolid(quantify=len(self.wheel_locations),
+    #                            shape_in=[self.left_wheel_rods[
+    #                                child.index].rods.rod_horizontal,
+    #                                      self.left_wheel_rods[
+    #                                          child.index].rods.rod_vertical],
+    #                            tool=self.skids[0].skid)
 
     @Part
     def right_wheel_rods(self):
         return MirroredShape(quantify=len(self.wheel_locations),
-                             shape_in=self.left_wheel_rods[child.index].rods,
+                             shape_in=self.left_wheel_rods[child.index],
                              reference_point=self.position,
                              vector1=self.position.Vx,
                              vector2=self.position.Vz,

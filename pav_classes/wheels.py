@@ -84,5 +84,5 @@ class Rods(GeomBase):
 if __name__ == '__main__':
     from parapy.gui import display
 
-    obj = Wheels(label="wheel")
+    obj = Rods(label="wheel")
     display(obj)

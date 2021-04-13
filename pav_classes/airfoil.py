@@ -37,9 +37,11 @@ class Airfoil(GeomBase):  # note the use of FittedCurve as superclass
                 point_lst.append(self.position.translate(
                     # The x points are scaled according to the airfoil chord
                     # length
-                    self.position.x, float(x),
+                    self.position.Vx,
+                    float(x),
                     # The y points are scaled according to the thickness factor
-                    self.position.z, float(z)))
+                    self.position.Vz,
+                    float(z)))
         return point_lst
 
     @Part(in_tree=False)

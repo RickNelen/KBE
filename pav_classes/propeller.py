@@ -137,7 +137,7 @@ class Propeller(GeomBase):
                              suppress=not self.nacelle_included)
 
     @Part(in_tree=False)
-    def propeller(self):
+    def propeller_reference(self):
         return LiftingSurface(color='black',
                               is_mirrored=False,
                               number_of_profiles=self.number_of_blade_sections,
@@ -159,11 +159,16 @@ class Propeller(GeomBase):
                                      self.position.Vy,
                                      radians(self.blade_setting_angle)))
 
+    @Part(in_tree=False)
+    def propeller(self):
+        return SubtractedSolid(shape_in=self.propeller_reference.surface,
+                               tool=self.hub_cone)
+
     @Part
     def propellers(self):
         return RotatedShape(quantify=self.number_of_blades,
                             color='black',
-                            shape_in=self.propeller.surface,
+                            shape_in=self.propeller,
                             rotation_point=self.position.point,
                             vector=self.position.Vz,
                             angle=self.angle_between_blades * child.index)
