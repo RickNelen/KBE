@@ -942,7 +942,7 @@ class PAV(GeomBase):
                      y=self.centre_of_gravity[1],
                      z=self.centre_of_gravity[2])
 
-    @Part
+    @Part(in_tree=False)
     def main_wing(self):
         return LiftingSurface(name='main_wing',
                               number_of_profiles=4,
@@ -959,6 +959,20 @@ class PAV(GeomBase):
                               color='silver')
 
     @Part
+    def right_wing(self):
+        return SubtractedSolid(shape_in=self.main_wing.surface,
+                               tool=self.fuselage.fuselage_shape,
+                               color='silver')
+
+    @Part
+    def left_wing(self):
+        return MirroredShape(shape_in=self.right_wing,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver')
+
+    @Part(in_tree=False)
     def horizontal_tail(self):
         return LiftingSurface(name='horizontal_tail',
                               number_of_profiles=2,
@@ -978,6 +992,20 @@ class PAV(GeomBase):
                               color='silver')
 
     @Part
+    def right_horizontal_tail(self):
+        return SubtractedSolid(shape_in=self.horizontal_tail.surface,
+                               tool=self.fuselage.fuselage_shape,
+                               color='silver')
+
+    @Part
+    def left_horizontal_tail(self):
+        return MirroredShape(shape_in=self.right_horizontal_tail,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver')
+
+    @Part(in_tree=False)
     def vertical_tail(self):
         return LiftingSurface(name='vertical_tails',
                               quantify=len(self.skid_locations),
@@ -1003,6 +1031,21 @@ class PAV(GeomBase):
                                             self.vertical_position_of_skids),
                                   self.position.Vx),
                               color=self.primary_colour)
+
+    @Part
+    def right_vertical_tail(self):
+        return SubtractedSolid(shape_in=self.vertical_tail[1].surface,
+                               tool=[self.right_horizontal_tail,
+                                     self.landing_skids[1]],
+                               color='silver')
+
+    @Part
+    def left_vertical_tail(self):
+        return MirroredShape(shape_in=self.right_vertical_tail,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver')
 
     @Part(in_tree=True)
     def fuselage(self):
@@ -1102,8 +1145,8 @@ class PAV(GeomBase):
                                tool=self.arrange_skids[child.index],
                                color='silver')
 
-    @Part
-    def right_front_connection(self):
+    @Part(in_tree=False)
+    def right_front_connection_reference(self):
         return LiftingSurface(name='front_connections',
                               number_of_profiles=2,
                               airfoils=[self.vertical_skid_profile],
@@ -1120,8 +1163,16 @@ class PAV(GeomBase):
                               color=self.secondary_colour)
 
     @Part
+    def right_front_connection(self):
+        return SubtractedSolid(
+            shape_in=self.right_front_connection_reference.surface,
+            tool=[self.fuselage.fuselage_shape,
+                  self.landing_skids[1]],
+            color=self.secondary_colour)
+
+    @Part
     def left_front_connection(self):
-        return MirroredShape(shape_in=self.right_front_connection.surface,
+        return MirroredShape(shape_in=self.right_front_connection,
                              reference_point=self.position,
                              vector1=self.position.Vx,
                              vector2=self.position.Vz,
