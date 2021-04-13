@@ -28,10 +28,13 @@ R = 287
 lbs_to_kg = 0.45359237
 ft_to_m = 0.3048
 
-C_T = 0.0050  # between 0.0050 and 0.0060
+c_t = 0.0050  # between 0.0050 and 0.0060
 sigma_rotor = 0.070  # fixed
-Mtip = 0.6  # fixed, higher Mach numbers for the rotor tips lead to stall
-DL_max = 1500  # fixed
+mach_number_tip = 0.6  # fixed, higher Mach numbers for the rotor tips lead to stall
+dl_max = 1500  # fixed
+r_over_chord_rotor = 10 #find number
+c_d_rotor = 0.1 #find number, use 1 pitch angle
+twist_rotor = -10 #degrees, tip angle is 10 degrees lower than at root, which is good for hover
 
 design_lift_coefficient = 0.5
 
@@ -347,70 +350,67 @@ class PAV(GeomBase):
     # Propeller related
     # -------------------------------------------------------------------------
 
-    N_blades = Input(4)  # between 2 and 5
-    chord_rotor = Input(0.08)
-    R_rotor = Input(.4)
-    ROC_vertical = Input(10)  # between 5 and 15 m/s is most common
+    n_blades = Input(4)  # between 2 and 5
+    r_rotor = Input(.4)
+    roc_vertical = Input(10)  # between 5 and 15 m/s is most common
     n_rotors = Input(4)  # should be even, >2
-    C_D_rotor = Input(0.1)  # obtain from some analysis somewhere
 
-    # still needs to be added: constant of R/chord, link with length
-    # skids, find C_D, then get a formula between R and n -> only variables
+    # still needs to be added: find C_D, then get a formula between R and n -> only variables
     # are R/chord, n, N
 
     @Attribute
-    def Disk_Loading(self):
-        return (self.T_max_vertical / (pi * self.R_rotor ** 2)
-                if self.T_max_vertical / (pi * self.R_rotor ** 2) <= DL_max
+    def disk_loading(self):
+        return (self.thrust_max_vertical / (self.n_rotors * pi * self.r_rotor ** 2)
+                if self.thrust_max_vertical / (self.n_rotors * pi * self.r_rotor ** 2) <= dl_max
                 else "DL is too high")
 
     @Attribute
-    def T_max_vertical(self):
-        return self.P_climb / self.ROC_vertical
+    def thrust_max_vertical(self):
+        return self.power_climb / self.roc_vertical
 
     @Attribute
-    def P_climb(self):
-        return (self.P_hover + self.P_ROC + self.P_profile +
-                self.P_D_liftingsurface)
+    def power_climb(self):
+        return (self.power_hover + self.power_roc + self.power_profile +
+                self.power_d_liftingsurface)
 
     @Attribute
-    def P_hover(self):
-        return self.T_hover * self.V_iclimb
+    def power_hover(self):
+        return self.thrust_hover * self.v_iinduced_climb
 
     # CT IS UNKNOWN! WHAT IS ITS VALUE?
     @Attribute
-    def T_hover(self):
-        return (1. / 6. * self.N_blades * 6.6 * CT / sigma_rotor
-                * self.cruise_density * self.chord_rotor
-                * (0.97 * Mtip * (
+    def thrust_hover(self):
+        return (1. / 6. * self.n_blades * 6.6 * c_t / sigma_rotor
+                * self.cruise_density * self.r_rotor / r_over_chord_rotor
+                * (0.97 * mach_number_tip * (
                     sqrt(R * gamma * self.cruise_temperature))) ** 2
-                * 0.97 * self.R_rotor * self.n_rotors)
+                * 0.97 * self.r_rotor * self.n_rotors)
 
     @Attribute
-    def V_iclimb(self):
-        return (self.ROC_vertical / 2
-                + sqrt((self.ROC_vertical / 2) ** 2 * self.T_hover
-                       / (2 * self.cruise_density * pi * self.R_rotor)))
+    def v_induced_climb(self):
+        return (self.roc_vertical / 2
+                + sqrt((self.roc_vertical / 2) ** 2 * self.thrust_hover
+                       / (2 * self.cruise_density * pi * self.r_rotor)))
 
     @Attribute
-    def P_ROC(self):
-        return self.MTOW * self.ROC_vertical / 2
+    def power_roc(self):
+        return self.maximum_take_off_weight * self.roc_vertical / 2
 
     @Attribute
-    def P_profile(self):
-        return (self.C_d_rotor * 1. / 8. * self.cruise_density *
-                self.chord_rotor * self.N_blades
-                * (Mtip * (sqrt(R * gamma * self.cruise_temperature))) ** 3
-                * self.R_rotor * self.n_rotors)
+    def power_profile(self):
+        return (self.c_d_rotor * 1. / 8. * self.cruise_density *
+                self.r_rotor / r_over_chord_rotor * self.n_blades
+                * (mach_number_tip * (sqrt(R * gamma * self.cruise_temperature))) ** 3
+                * self.r_rotor * self.n_rotors)
 
     @Attribute
-    def P_D_liftingsurface(self):
-        return self.D_liftingsurfaces * self.ROC_vertical
+    def power_d_liftingsurface(self):
+        return self.vertical_drag_liftingsurfaces * self.roc_vertical
 
     @Attribute
-    def D_liftingsurfaces(self):
-        return (1. / 2. * self.cruise_density * self.ROC_vertical ** 2
-                * self.C_D_flatplate
+    def vertical_drag_liftingsurfaces(self):
+        return (1. / 2. * self.cruise_density * self.roc_vertical ** 2
+                * self.c_d_flatplate
                 * (self.wing_area + self.horizontal_tail_area))
 
     # -------------------------------------------------------------------------
@@ -831,6 +831,18 @@ class PAV(GeomBase):
                                           self.number_of_vtol_propellers)]
         return [first_skid, second_skid]
 
+    @Attribute
+    def arrange_struts(self):
+        first_skid = [self.left_wheel_rods[index].rod_vertical
+                      for index in range(int(self.number_of_wheels
+                                             / 2))]
+        second_skid = [self.right_wheel_rods[index - int(
+            self.number_of_wheels / 2)]
+                       for index in range(int(self.number_of_wheels
+                                              / 2),
+                                          self.number_of_wheels)]
+        return [first_skid, second_skid]
+
     # -------------------------------------------------------------------------
     # Connections
     # -------------------------------------------------------------------------
@@ -1117,6 +1129,37 @@ class PAV(GeomBase):
                          position=self.vtol_propeller_locations[child.index],
                          color=self.secondary_colour)
 
+    # @Part
+    # def vtol_hubs(self):
+    #     return SubtractedSolid(quantify=self.number_of_vtol_propellers,
+    #                            shape_in=self.vtol_propellers_reference[
+    #                                child.index].hub_cone,
+    #                            tool=
+    #                            self.skids[round(
+    #                                child.index
+    #                                / self.number_of_vtol_propellers)].skid)
+    #
+    # @Part
+    # def vtol_propellers(self):
+    #     return Propeller(name='VTOL_propellers',
+    #                      quantify=self.number_of_vtol_propellers,
+    #                      number_of_blades=4,
+    #                      blade_radius=self.vtol_propeller_radius,
+    #                      hub_length=1.5 * self.skid_height,
+    #                      hide_hub=True,
+    #                      nacelle_included=False,
+    #                      aspect_ratio=6,
+    #                      ratio_hub_to_blade_radius=
+    #                      min(0.2, 0.9 * (self.skid_width / 2)
+    #                          / self.vtol_propeller_radius),
+    #                      leading_edge_sweep=0,
+    #                      blade_setting_angle=30,
+    #                      blade_outwash=25,
+    #                      number_of_blade_sections=40,
+    #                      blade_thickness=50,
+    #                      position=self.vtol_propeller_locations[child.index],
+    #                      color=self.secondary_colour)
+
     # -------------------------------------------------------------------------
     # SKIDS
     # -------------------------------------------------------------------------
@@ -1142,8 +1185,8 @@ class PAV(GeomBase):
     def landing_skids(self):
         return SubtractedSolid(quantify=2,
                                shape_in=self.skids[child.index].skid,
-                               tool=self.arrange_skids[child.index],
-                               color='silver')
+                               tool=self.arrange_skids[child.index])
+                               # self.arrange_struts[child.index]])
 
     @Part(in_tree=False)
     def right_front_connection_reference(self):
@@ -1201,8 +1244,8 @@ class PAV(GeomBase):
                              color='black',
                              suppress=not self.wheels_included)
 
-    @Part(in_tree=False)
-    def left_wheel_reference_rods(self):
+    @Part
+    def left_wheel_rods(self):
         return Rods(quantify=len(self.wheel_locations),
                     wheel_length=self.wheel_width,
                     rod_horizontal_length=self.horizontal_rod_length,
@@ -1210,27 +1253,15 @@ class PAV(GeomBase):
                     position=self.wheel_locations[child.index],
                     color='silver',
                     suppress=not self.wheels_included)
-
-    @Part(in_tree=False)
-    def left_wheel_horizontal_rods(self):
-        return Solid(quantify=len(self.wheel_locations),
-                     built_from=self.left_wheel_reference_rods[
-                         child.index].rod_horizontal)
-
-    @Part(in_tree=False)
-    def left_wheel_vertical_rods(self):
-        return SubtractedSolid(quantify=len(self.wheel_locations),
-                               shape_in=self.left_wheel_reference_rods[
-                                   child.index].rod_vertical,
-                               tool=self.skids[0].skid)
-
-    @Part
-    def left_wheel_rods(self):
-        return Compound(quantify=len(self.wheel_locations),
-                        built_from=[
-                            self.left_wheel_horizontal_rods[child.index],
-                            self.left_wheel_vertical_rods[child.index]],
-                        color='silver')
+    #
+    # @Part
+    # def left_struts(self):
+    #     return SubtractedSolid(quantify=len(self.wheel_locations),
+    #                            shape_in=[self.left_wheel_rods[
+    #                                child.index].rods.rod_horizontal,
+    #                                      self.left_wheel_rods[
+    #                                          child.index].rods.rod_vertical],
+    #                            tool=self.skids[0].skid)
 
     @Part
     def right_wheel_rods(self):
