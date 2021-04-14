@@ -29,6 +29,7 @@ lbs_to_kg = 0.45359237
 ft_to_m = 0.3048
 
 c_t = 0.0050  # between 0.0050 and 0.0060
+c_t_cruise = 0.010  # between 0.02 and 0.16
 sigma_rotor = 0.070  # fixed
 mach_number_tip = 0.6  # fixed, higher Mach numbers for the rotor tips lead to stall
 dl_max = 1500  # fixed
@@ -50,6 +51,14 @@ def generate_warning(warning_header, message):
 
 def chord_length(root_chord, tip_chord, span_position):
     return root_chord - (root_chord - tip_chord) * span_position
+
+
+def sweep_to_sweep(x_over_c_start, sweep_start, x_over_c_end, aspect_ratio,
+                   taper_ratio):
+    tan_sweep_end = (tan(sweep_start) - 4 / aspect_ratio
+                     * (x_over_c_end - x_over_c_start)
+                     * (1 - taper_ratio) / (1 + taper_ratio))
+    return atan(tan_sweep_end)
 
 
 cases = [('fixed_cl',
@@ -355,19 +364,19 @@ class PAV(GeomBase):
     n_blades = Input(4)  # between 2 and 5
     r_rotor = Input(.4)
     roc_vertical = Input(10)  # between 5 and 15 m/s is most common
-    c_d_flatplate - Input(1.28)
+    c_d_flatplate = Input(1.28)
     r_propeller = Input(0.5)
 
     # it now computes the number of rotors needed based on a given rotor diameter
 
     @Attribute
     def n_rotors(self):
-        n_rotors_computed = (self.roc_vertical
-                             / (self.power_roc +
-                                self.power_d_liftingsurface)
-                             * (1500. * pi * self.r_rotor ** 2 -
-                                (self.power_hover + self.power_profile)
-                                / self.roc_vertical)
+        n_rotors_computed = (- (self.power_roc + self.power_d_liftingsurface)
+                             / self.roc_vertical
+                             * (1 / ((self.power_hover + self.power_profile)
+                                     / self.roc_vertical - 1500. * pi *
+                                     self.r_rotor)
+                                )
                              )
         n_rotors_per_side = ceil(n_rotors_computed / 2)
         return n_rotors_per_side * 2
@@ -375,8 +384,8 @@ class PAV(GeomBase):
     @Attribute
     def number_of_propellers_cruise(self):
         return ceil(self.total_drag_coefficient * self.velocity ** 2
-                    * self.wing_area
-                    / (64. * self.r_propeller * pi * c_t
+                    * self.wing_area * pi ** 2
+                    / (8. * self.r_propeller ** 2 * c_t_cruise
                        * (mach_number_tip * self.cruise_speed_of_sound) ** 2))
 
     @Attribute
@@ -573,80 +582,128 @@ class PAV(GeomBase):
     # Needed: x coordinate cog whole thing, x coordinate cog wing, x coordinate cog tail, mac
     @Attribute
     def horizontal_tail_area_stability(self):
-        return ((
-                            self.centre_of_gravity - self.aerodynamic_center_wing_and_fuselage)
-                / (
-                            1 - self.downwash) * self.lift_coefficient_alpha_wing_and_fuselage /
-                self.lift_coefficient_alpha_horizontal_tail * (
-                            self.cruise_velocity * 3.6 /
-                            self.cruise_velocity_horizontal_tail) ** 2 * self.wing_area * self.mean_aerodynamic_chord
-                / abs(
-                    self.center_of_gravity_wing - self.center_of_gravity_horizontal_tail))
+        return (
+                (self.centre_of_gravity.x
+                 - self.aerodynamic_center_wing_and_fuselage)
+                / (1 - self.down_wash)
+                * self.lift_coefficient_alpha_wing_and_fuselage
+                / self.lift_coefficient_alpha_horizontal_tail
+                * (self.velocity / self.cruise_velocity_horizontal_tail) ** 2
+                * self.wing_area * self.mean_aerodynamic_chord
+                / abs(self.center_of_gravity_of_components['main_wing'][1]
+                      - self.center_of_gravity_of_components[
+                          'horizontal_tail'][1])
+        )
 
     @Attribute
     def aerodynamic_center_wing_and_fuselage(self):
-        return (
-                    self.x_mean_aerodynamic_chord - 1.8 / self.lift_coefficient_alpha_wing_and_fuselage
-                    * self.cabin_width * self.cabin_height * self.wing_location_le
-                    / (
-                                self.wing_area * self.mean_aerodynamic_chord) + 0.273 / (
-                                1 + self.wing_taper_ratio)
-                    * self.cabin_width * self.wing_area / self.wing_span * (
-                                self.wing_span - self.cabin_width)
-                    / (self.mean_aerodynamic_chord ** 2 * (
-                        self.wing_span + 2.15 * self.cabin_width)) * tan(
-                self.wing_sweep))
+        return (  # Get the x position of the MAC
+                self.main_wing.position.x + tan(radians(self.wing_sweep)) *
+                self.main_wing.lateral_position_of_mean_aerodynamic_chord
+                # Get the x position of the fuselage
+                - 1.8 / self.lift_coefficient_alpha_wing_and_fuselage
+                * self.cabin_width * self.cabin_height * self.wing_location_le
+                / (self.wing_area * self.main_wing.mean_aerodynamic_chord)
+                + 0.273 / (1 + self.main_wing.taper_ratio)
+                * self.cabin_width * self.wing_area / self.wing_span
+                * (self.wing_span - self.cabin_width)
+                / (self.main_wing.mean_aerodynamic_chord ** 2
+                   * (self.wing_span + 2.15 * self.cabin_width))
+                * tan(self.wing_sweep))
+
+    @Attribute
+    def wing_location_le(self):
+        return (self.main_wing.position.x
+                + tan(radians(self.wing_sweep)) * self.cabin_width / 2
+                - chord_length(self.main_wing.root_chord,
+                               self.main_wing.tip_chord,
+                               self.cabin_width / (self.wing_span / 2)) / 4
+                )
 
     @Attribute
     def lift_coefficient_alpha_wing_and_fuselage(self):
-        return (self._lift_coefficient_alpha_wing * (
-                    1 + 2.15 * self.cabin_width
-                    / self.wing_span) * (self.wing_area - self.cabin_width *
-                                         self.wing_root_chord) / self.wing_area + pi / 2. * self.cabin_width ** 2
+        return (self.lift_coefficient_alpha_wing
+                * (1 + 2.15 * self.cabin_width / self.wing_span)
+                * (self.wing_area - self.cabin_width *
+                   self.main_wing.root_chord)
+                / self.wing_area + pi / 2. * self.cabin_width ** 2
                 / self.wing_span)
 
     @Attribute
     def lift_coefficient_alpha_wing(self):
-        return (2. * pi * self.wing_aspect_ratio / (2. + sqrt(4. +
-                                                              (
-                                                                          self.wing_aspect_ratio * sqrt(
-                                                                      1 -
-                                                                      self.cruise_mach_number ** 2) / 0.95) ** 2 * (
-                                                                      1. + (
-                                                                          tan(
-                                                                              self.wing_half_chord_sweep) / sqrt(
-                                                                      1 -
-                                                                      self.cruise_mach_number ** 2)) ** 2))))
+        return (2. * pi * self.wing_aspect_ratio
+                / (2.
+                   + sqrt(4.
+                          + (self.wing_aspect_ratio
+                             * sqrt(1 - self.cruise_mach_number ** 2)
+                             / 0.95) ** 2
+                          * (1. + (tan(
+                            sweep_to_sweep(0.25, radians(self.wing_sweep), 0.5,
+                                           self.wing_aspect_ratio,
+                                           self.main_wing.taper_ratio))
+                                   / sqrt(1 - self.cruise_mach_number ** 2))
+                             ** 2)
+                          )
+                   )
+                )
 
     @Attribute
     def lift_coefficient_alpha_horizontal_tail(self):
-        return (2. * pi * self.horizontal_tail_aspect_ratio / (2. + sqrt(4. +
-                                                                         (
-                                                                                     self.horizontal_tail_aspect_ratio * sqrt(
-                                                                                 1 -
-                                                                                 (
-                                                                                             self.cruise_velocity_horizontal_tail / self.cruise_speed_of_sound) ** 2)
-                                                                                     / 0.95) ** 2 * (
-                                                                                     1. + (
-                                                                                         tan(
-                                                                                             3.5 * self.horizontal_tail_aspect_ratio) /
-                                                                                         sqrt(
-                                                                                             1 - (
-                                                                                                         self.cruise_velocity_horizontal_tail / self.cruise_speed_of_sound)
-                                                                                             ** 2)) ** 2))))
+        return (2. * pi * self.horizontal_tail.aspect_ratio
+                / (2. + sqrt(4. + (self.horizontal_tail.aspect_ratio
+                                   * sqrt(1 -
+                                          (self.cruise_velocity_horizontal_tail
+                                           / self.cruise_speed_of_sound) ** 2)
+                                   / 0.95) ** 2
+                             * (1. +
+                                (tan(3.5 * self.horizontal_tail.aspect_ratio)
+                                 / sqrt(1 -
+                                        (self.cruise_velocity_horizontal_tail
+                                         / self.cruise_speed_of_sound) ** 2)
+                                 ) ** 2
+                                )
+                             )
+                   )
+                )
 
     @Attribute
-    def downwash(self):
-        K_epsilon_wing_sweep = (
-                                           0.1124 + 0.1265 * self.wing_sweep + 0.1766 * self.wing_sweep ** 2) / (
-                                       self.distance_wing_tail_x ** 2) + 0.1024 / self.distance_wing_tail_x + 2.
-        K_epsilon_wing_zero_sweep = 0.1124 / (
-                    self.distance_wing_tail_x ** 2) + 0.1024 / self.distance_wing_tail_x + 2.
-        distance_wing_tail_x = abs(
-            self.center_of_gravity_wing - self.center_of_gravity_horizontal_tail) / (
-                                       self.wing_span / 2.)
-        distance_wing_tail_z = abs(self.z_wing - self.z_horizontal_tail)
-        return
+    def down_wash(self):
+        wing_x = (self.main_wing.position.x
+                  + tan(radians(self.wing_sweep))
+                  * self.main_wing.lateral_position_of_mean_aerodynamic_chord)
+        wing_z = (self.main_wing.position.z
+                  + tan(radians(self.wing.dihedral))
+                  * self.main_wing.lateral_position_of_mean_aerodynamic_chord)
+        h_t_x = (self.horizontal_tail.position.x
+                 + tan(radians(self.horizontal_tail.sweep))
+                 *
+                 self.horizontal_tail.lateral_position_of_mean_aerodynamic_chord)
+        h_t_z = (self.horizontal_tail.position.z
+                 + tan(radians(
+                    self.horizontal_tail.dihedral))
+                 *
+                 self.horizontal_tail.lateral_position_of_mean_aerodynamic_chord)
+        k_epsilon_wing_sweep = ((0.1124 + 0.1265 * self.wing_sweep
+                                 + 0.1766 * self.wing_sweep ** 2)
+                                / ((h_t_x - wing_x) ** 2)
+                                + 0.1024 / (h_t_x - wing_x) + 2.)
+        k_epsilon_wing_zero_sweep = (0.1124 / ((h_t_x - wing_x) ** 2)
+                                     + 0.1024 / (h_t_x - wing_x) + 2.)
+        distance_wing_tail_x = abs(h_t_x - wing_x) / (self.wing_span / 2.)
+        distance_wing_tail_z = abs(wing_z - h_t_z)
+        r = distance_wing_tail_x / (self.wing_span / 2)
+        return (k_epsilon_wing_sweep / k_epsilon_wing_zero_sweep
+                * (r / (r ** 2 + distance_wing_tail_z ** 2)
+                   * 0.4875
+                   / (sqrt(r ** 2 + 0.6319 + distance_wing_tail_z ** 2))
+                   + (1 + (r ** 2 / (r ** 2 + 0.7915 + 5.0734 *
+                                     distance_wing_tail_z ** 2)) ** 0.3113)
+                   * (1 - sqrt(distance_wing_tail_z ** 2
+                               / (1 - distance_wing_tail_z ** 2))
+                      )
+                   ) * self.lift_coefficient_alpha_wing
+                / (pi * self.wing_aspect_ratio)
+                )
 
     # @Attribute
     # def horizontal_tail_area(self):
@@ -1084,7 +1141,7 @@ class PAV(GeomBase):
                               airfoils=['2218', '2212'],
                               is_mirrored=True,
                               span=sqrt(self.wing_aspect_ratio
-                                        * self.horizontal_tail_area),
+                                        * self.horizontal_tail_area_stability),
                               aspect_ratio=self.wing_aspect_ratio * 0.7,
                               taper_ratio=0.4,
                               sweep=self.horizontal_tail_sweep,

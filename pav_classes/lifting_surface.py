@@ -72,6 +72,12 @@ class LiftingSurface(GeomBase):
                 * (1 + self.taper_ratio + self.taper_ratio ** 2)
                 / (1 + self.taper_ratio))
 
+    @Attribute
+    def lateral_position_of_mean_aerodynamic_chord(self):
+        return (self.wing_span / 6
+                * (self.root_chord + 2 * self.tip_chord)
+                / (self.root_chord + self.tip_chord))
+
     # Compute surface area from span and aspect ratio
     @Attribute
     def surface_area(self):
