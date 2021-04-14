@@ -839,18 +839,6 @@ class PAV(GeomBase):
                                           self.number_of_vtol_propellers)]
         return [first_skid, second_skid]
 
-    @Attribute
-    def arrange_struts(self):
-        first_skid = [self.left_wheel_rods[index].rod_vertical
-                      for index in range(int(self.number_of_wheels
-                                             / 2))]
-        second_skid = [self.right_wheel_rods[index - int(
-            self.number_of_wheels / 2)]
-                       for index in range(int(self.number_of_wheels
-                                              / 2),
-                                          self.number_of_wheels)]
-        return [first_skid, second_skid]
-
     # -------------------------------------------------------------------------
     # Connections
     # -------------------------------------------------------------------------
@@ -962,7 +950,7 @@ class PAV(GeomBase):
                      y=self.centre_of_gravity[1],
                      z=self.centre_of_gravity[2])
 
-    @Part
+    @Part(in_tree=False)
     def main_wing(self):
         return LiftingSurface(name='main_wing',
                               number_of_profiles=4,
@@ -979,6 +967,20 @@ class PAV(GeomBase):
                               color='silver')
 
     @Part
+    def right_wing(self):
+        return SubtractedSolid(shape_in=self.main_wing.surface,
+                               tool=self.fuselage.fuselage_shape,
+                               color='silver')
+
+    @Part
+    def left_wing(self):
+        return MirroredShape(shape_in=self.right_wing,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver')
+
+    @Part(in_tree=False)
     def horizontal_tail(self):
         return LiftingSurface(name='horizontal_tail',
                               number_of_profiles=2,
@@ -998,6 +1000,20 @@ class PAV(GeomBase):
                               color='silver')
 
     @Part
+    def right_horizontal_tail(self):
+        return SubtractedSolid(shape_in=self.horizontal_tail.surface,
+                               tool=self.fuselage.fuselage_shape,
+                               color='silver')
+
+    @Part
+    def left_horizontal_tail(self):
+        return MirroredShape(shape_in=self.right_horizontal_tail,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver')
+
+    @Part(in_tree=False)
     def vertical_tail(self):
         return LiftingSurface(name='vertical_tails',
                               quantify=len(self.skid_locations),
@@ -1023,6 +1039,21 @@ class PAV(GeomBase):
                                             self.vertical_position_of_skids),
                                   self.position.Vx),
                               color=self.primary_colour)
+
+    @Part
+    def right_vertical_tail(self):
+        return SubtractedSolid(shape_in=self.vertical_tail[1].surface,
+                               tool=[self.right_horizontal_tail,
+                                     self.landing_skids[1]],
+                               color='silver')
+
+    @Part
+    def left_vertical_tail(self):
+        return MirroredShape(shape_in=self.right_vertical_tail,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver')
 
     @Part(in_tree=True)
     def fuselage(self):
@@ -1094,37 +1125,6 @@ class PAV(GeomBase):
                          position=self.vtol_propeller_locations[child.index],
                          color=self.secondary_colour)
 
-    # @Part
-    # def vtol_hubs(self):
-    #     return SubtractedSolid(quantify=self.number_of_vtol_propellers,
-    #                            shape_in=self.vtol_propellers_reference[
-    #                                child.index].hub_cone,
-    #                            tool=
-    #                            self.skids[round(
-    #                                child.index
-    #                                / self.number_of_vtol_propellers)].skid)
-    #
-    # @Part
-    # def vtol_propellers(self):
-    #     return Propeller(name='VTOL_propellers',
-    #                      quantify=self.number_of_vtol_propellers,
-    #                      number_of_blades=4,
-    #                      blade_radius=self.vtol_propeller_radius,
-    #                      hub_length=1.5 * self.skid_height,
-    #                      hide_hub=True,
-    #                      nacelle_included=False,
-    #                      aspect_ratio=6,
-    #                      ratio_hub_to_blade_radius=
-    #                      min(0.2, 0.9 * (self.skid_width / 2)
-    #                          / self.vtol_propeller_radius),
-    #                      leading_edge_sweep=0,
-    #                      blade_setting_angle=30,
-    #                      blade_outwash=25,
-    #                      number_of_blade_sections=40,
-    #                      blade_thickness=50,
-    #                      position=self.vtol_propeller_locations[child.index],
-    #                      color=self.secondary_colour)
-
     # -------------------------------------------------------------------------
     # SKIDS
     # -------------------------------------------------------------------------
@@ -1150,11 +1150,11 @@ class PAV(GeomBase):
     def landing_skids(self):
         return SubtractedSolid(quantify=2,
                                shape_in=self.skids[child.index].skid,
-                               tool=self.arrange_skids[child.index])
-        # self.arrange_struts[child.index]])
+                               tool=self.arrange_skids[child.index],
+                               color='silver')
 
-    @Part
-    def right_front_connection(self):
+    @Part(in_tree=False)
+    def right_front_connection_reference(self):
         return LiftingSurface(name='front_connections',
                               number_of_profiles=2,
                               airfoils=[self.vertical_skid_profile],
@@ -1171,8 +1171,16 @@ class PAV(GeomBase):
                               color=self.secondary_colour)
 
     @Part
+    def right_front_connection(self):
+        return SubtractedSolid(
+            shape_in=self.right_front_connection_reference.surface,
+            tool=[self.fuselage.fuselage_shape,
+                  self.landing_skids[1]],
+            color=self.secondary_colour)
+
+    @Part
     def left_front_connection(self):
-        return MirroredShape(shape_in=self.right_front_connection.surface,
+        return MirroredShape(shape_in=self.right_front_connection,
                              reference_point=self.position,
                              vector1=self.position.Vx,
                              vector2=self.position.Vz,
@@ -1201,8 +1209,8 @@ class PAV(GeomBase):
                              color='black',
                              suppress=not self.wheels_included)
 
-    @Part
-    def left_wheel_rods(self):
+    @Part(in_tree=False)
+    def left_wheel_reference_rods(self):
         return Rods(quantify=len(self.wheel_locations),
                     wheel_length=self.wheel_width,
                     rod_horizontal_length=self.horizontal_rod_length,
@@ -1211,15 +1219,26 @@ class PAV(GeomBase):
                     color='silver',
                     suppress=not self.wheels_included)
 
-    #
-    # @Part
-    # def left_struts(self):
-    #     return SubtractedSolid(quantify=len(self.wheel_locations),
-    #                            shape_in=[self.left_wheel_rods[
-    #                                child.index].rods.rod_horizontal,
-    #                                      self.left_wheel_rods[
-    #                                          child.index].rods.rod_vertical],
-    #                            tool=self.skids[0].skid)
+    @Part(in_tree=False)
+    def left_wheel_horizontal_rods(self):
+        return Solid(quantify=len(self.wheel_locations),
+                     built_from=self.left_wheel_reference_rods[
+                         child.index].rod_horizontal)
+
+    @Part(in_tree=False)
+    def left_wheel_vertical_rods(self):
+        return SubtractedSolid(quantify=len(self.wheel_locations),
+                               shape_in=self.left_wheel_reference_rods[
+                                   child.index].rod_vertical,
+                               tool=self.skids[0].skid)
+
+    @Part
+    def left_wheel_rods(self):
+        return Compound(quantify=len(self.wheel_locations),
+                        built_from=[
+                            self.left_wheel_horizontal_rods[child.index],
+                            self.left_wheel_vertical_rods[child.index]],
+                        color='silver')
 
     @Part
     def right_wheel_rods(self):
