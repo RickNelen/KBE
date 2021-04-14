@@ -275,34 +275,35 @@ class PAV(GeomBase):
 
     @Attribute
     def centre_of_gravity(self):
-        count = 0
-        x_value = 0
-        y_value = 0
-        z_value = 0
-        for component in self.center_of_gravity_of_components:
-            if type(self.pav_components[component]) is not list:
-                count += 1
-                x_value += (self.center_of_gravity_of_components[component][0]
-                            * self.mass_of_components[component])
-                y_value += (self.center_of_gravity_of_components[component][1]
-                            * self.mass_of_components[component])
-                z_value += (self.center_of_gravity_of_components[component][2]
-                            * self.mass_of_components[component])
-            else:
-                for index in range(len(self.pav_components[component])):
-                    count += 1
-                    x_value += (self.center_of_gravity_of_components[
-                                    component][index][0]
-                                * self.mass_of_components[component])
-                    y_value += (self.center_of_gravity_of_components[
-                                    component][index][1]
-                                * self.mass_of_components[component])
-                    z_value += (self.center_of_gravity_of_components[
-                                    component][index][2]
-                                * self.mass_of_components[component])
-        return [x_value / self.mass,
-                y_value / self.mass,
-                z_value / self.mass]
+        # count = 0
+        # x_value = 0
+        # y_value = 0
+        # z_value = 0
+        # for component in self.center_of_gravity_of_components:
+        #     if type(self.pav_components[component]) is not list:
+        #         count += 1
+        #         x_value += (self.center_of_gravity_of_components[component][0]
+        #                     * self.mass_of_components[component])
+        #         y_value += (self.center_of_gravity_of_components[component][1]
+        #                     * self.mass_of_components[component])
+        #         z_value += (self.center_of_gravity_of_components[component][2]
+        #                     * self.mass_of_components[component])
+        #     else:
+        #         for index in range(len(self.pav_components[component])):
+        #             count += 1
+        #             x_value += (self.center_of_gravity_of_components[
+        #                             component][index][0]
+        #                         * self.mass_of_components[component])
+        #             y_value += (self.center_of_gravity_of_components[
+        #                             component][index][1]
+        #                         * self.mass_of_components[component])
+        #             z_value += (self.center_of_gravity_of_components[
+        #                             component][index][2]
+        #                         * self.mass_of_components[component])
+        # return [x_value / self.mass,
+        #         y_value / self.mass,
+        #         z_value / self.mass]
+        return [2.5, 0, 0.1]
 
     # -------------------------------------------------------------------------
     # Battery related
@@ -354,8 +355,8 @@ class PAV(GeomBase):
     n_blades = Input(4)  # between 2 and 5
     r_rotor = Input(.4)
     roc_vertical = Input(10)  # between 5 and 15 m/s is most common
-    c_d_flatplate - Input(1.28)
-    r_propeller = Input(0.4)
+    c_d_flatplate = Input(1.28)
+    r_propeller = Input(0.5)
 
     #it now computes the number of rotors needed based on a given rotor diameter
 
@@ -366,6 +367,13 @@ class PAV(GeomBase):
             (self.power_hover + self.power_profile) / self.roc_vertical))
         n_rotors_per_side = ceil(n_rotors_computed / 2)
         return n_rotors_per_side * 2
+
+    # @Attribute
+    # def number_of_propellers_cruise(self):
+    #     return (self.total_drag_coefficient * (self.cruise_velocity * 3.6) ** 2
+    #             * self.wing_area / (64. * self.r_propeller * pi * c_t * (
+    #                         mach_number_tip
+    #                         * sqrt(R * gamma * self.cruise_temperature)) ** 2)
 
     @Attribute
     def power_climb(self):
@@ -417,11 +425,11 @@ class PAV(GeomBase):
                 * self.c_d_flatplate
                 * (self.wing_area + self.horizontal_tail_area))
 
-    # @Attribute
-    # def number_of_propellers_cruise(self):
-    #     return ceil(self.total_drag_coefficient * (self.cruise_velocity*3.6) ** 2
-    #             * self.wing_area / (64. * self.r_propeller * pi * c_t * (mach_number_tip
-    #             * sqrt(R * gamma * self.cruise_temperature)) ** 2))
+    @Attribute
+    def number_of_propellers_cruise(self):
+        return ceil(self.total_drag_coefficient * (self.cruise_velocity*3.6) ** 2
+                * self.wing_area / (64. * self.r_propeller * pi * c_t * (mach_number_tip
+                * sqrt(R * gamma * self.cruise_temperature)) ** 2))
 
     # -------------------------------------------------------------------------
     # Mostly fuselage related
@@ -634,20 +642,20 @@ class PAV(GeomBase):
 
     @Attribute
     def number_of_propellers(self):
-        return ceil(self.wing_area / 2)
+        return self.number_of_propellers_cruise # ceil(self.wing_area / 2)
 
     @Input
     def number_of_vtol_propellers(self):
-        return 12
+        return self.n_rotors
 
     @Attribute
     def propeller_radii(self):
-        return ([1 - 0.1 * self.number_of_propellers]
-                * self.number_of_propellers)
+        return self.r_propeller # ([1 - 0.1 * self.number_of_propellers]
+               # * self.number_of_propellers)
 
     @Input
     def vtol_propeller_radius(self):
-        return 6 / self.number_of_vtol_propellers
+        return self.r_rotor #6 / self.number_of_vtol_propellers
 
     @Attribute
     def propeller_locations(self):
@@ -665,17 +673,18 @@ class PAV(GeomBase):
 
         # Determine the number of propellers on each side
         one_side = (int(self.number_of_propellers / 2)
-                    if self.number_of_propellers % 2 != 0
+                    if self.number_of_propellers % 2 == 0
                     else int((self.number_of_propellers - 1) / 2))
 
         # Position each propeller in y-direction on one wing; make sure they
         # are placed such that the most inboard propeller tip still is 0.5
         # propeller radius away from the fuselage
         y_shift = [(1 - (semi_span - self.cabin_width / 2
-                         - 1.5 * self.propeller_radii[-1]) / semi_span
+                         - 1.5 * self.r_propeller) / semi_span
                     * index / one_side)
                    * self.wing_span / 2
                    for index in range(one_side)]
+        print(y_shift)
 
         # Place the propellers just ahead of the leading edge of the right wing
         right_wing = [translate(self.wing_location,
@@ -685,7 +694,7 @@ class PAV(GeomBase):
                                     self.main_wing.root_chord,
                                     self.main_wing.tip_chord,
                                     y_shift[index] / semi_span)
-                                - self.propeller_radii[index] * tan(sweep),
+                                - self.r_propeller * tan(sweep),
                                 self.wing_location.Vy,
                                 y_shift[index],
                                 self.wing_location.Vz,
@@ -697,7 +706,8 @@ class PAV(GeomBase):
                                self.wing_location.Vy,
                                - 2 * y_shift[index])
                      for index in range(one_side)]
-        return [first] + right_wing + left_wing
+        return ([first] + right_wing + left_wing if
+                self.number_of_propellers % 2 != 0 else right_wing + left_wing)
 
     @Attribute
     def vtol_propeller_locations(self):
@@ -779,7 +789,7 @@ class PAV(GeomBase):
                      self.vertical_tail_root_chord)
                   * self.prop_separation_factor
                   + remaining_number_of_props * self.vtol_propeller_radius
-                  * 2 * self.prop_separation_factor)
+                  * 2 * self.prop_separation_factor + 0.1)
         # Provide as output the length of the skid, as well as how the
         # propellers are divided, such that they can be positioned later on
         return [length, distance_between_connections, int(props_on_the_front),
@@ -945,7 +955,11 @@ class PAV(GeomBase):
 
     @Attribute
     def avl_surfaces(self):
-        return self.find_children(lambda o: isinstance(o, avl.Surface))
+        return [self.main_wing.avl_surface,
+                self.horizontal_tail.avl_surface,
+                self.vertical_tail[0].avl_surface,
+                self.vertical_tail[1].avl_surface]
+        # return self.find_children(lambda o: isinstance(o, avl.Surface))
 
     # -------------------------------------------------------------------------
     # PARTS
@@ -1088,14 +1102,14 @@ class PAV(GeomBase):
     def cruise_propellers(self):
         return Propeller(name='cruise_propellers',
                          quantify=len(self.propeller_locations),
-                         number_of_blades=6,
-                         blade_radius=self.propeller_radii[child.index],
+                         number_of_blades=self.n_blades,
+                         blade_radius=self.r_propeller,
                          nacelle_length=(0.55 * chord_length(
                              self.main_wing.root_chord,
                              self.main_wing.tip_chord,
                              abs(self.propeller_locations[
                                      child.index].y / (self.wing_span / 2)))
-                                         + self.propeller_radii[child.index]
+                                         + self.r_propeller
                                          * tan(radians(self.wing_sweep))),
                          nacelle_included=
                          False if child.index == 0
@@ -1117,7 +1131,7 @@ class PAV(GeomBase):
     def vtol_propellers(self):
         return Propeller(name='VTOL_propellers',
                          quantify=self.number_of_vtol_propellers,
-                         number_of_blades=4,
+                         number_of_blades=self.n_blades,
                          blade_radius=self.vtol_propeller_radius,
                          hub_length=1.5 * self.skid_height,
                          nacelle_included=False,

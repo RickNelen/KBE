@@ -70,15 +70,15 @@ if __name__ == '__main__':
               secondary_colour=secondary_colour_in,
               name='PAV')
 
-    # cases = [('fixed_aoa', {'alpha': 3}),
-    #          ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
-    #                                               value='0.3',
-    #                                               setting='CL')})]
-    #
-    # analysis = AvlAnalysis(aircraft=pav,
-    #                        case_settings=cases)
+    cases = [('fixed_aoa', {'alpha': 3}),
+             ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
+                                                  value='0.3',
+                                                  setting='CL')})]
 
-    display(pav)
+    analysis = AvlAnalysis(aircraft=pav,
+                           case_settings=cases)
+
+    display(analysis)
     print(pav.pav_components)
     # print(analysis.lift_over_drag)
     #
