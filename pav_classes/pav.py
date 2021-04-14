@@ -32,10 +32,10 @@ c_t = 0.0050  # between 0.0050 and 0.0060
 sigma_rotor = 0.070  # fixed
 mach_number_tip = 0.6  # fixed, higher Mach numbers for the rotor tips lead to stall
 dl_max = 1500  # fixed
-r_over_chord_rotor: int = 15 # between 15 and 20
+r_over_chord_rotor: int = 15  # between 15 and 20
 figure_of_merit = 0.8  # between 0.6 and 0.8
 twist_rotor = -10  # degrees, tip angle is 10 degrees lower than at root, which is good for hover
-k_factor_rotor_drag = 1.15 # between 1.1 and 1.2
+k_factor_rotor_drag = 1.15  # between 1.1 and 1.2
 
 design_lift_coefficient = 0.5
 
@@ -358,22 +358,27 @@ class PAV(GeomBase):
     c_d_flatplate = Input(1.28)
     r_propeller = Input(0.5)
 
-    #it now computes the number of rotors needed based on a given rotor diameter
+    # it now computes the number of rotors needed based on a given rotor diameter
 
     @Attribute
     def n_rotors(self):
-        n_rotors_computed = (self.roc_vertical / (self.power_roc +
-            self.power_d_liftingsurface) * (1500. * pi * self.r_rotor ** 2 -
-            (self.power_hover + self.power_profile) / self.roc_vertical))
+        n_rotors_computed = (self.roc_vertical
+                             / (self.power_roc +
+                                self.power_d_liftingsurface)
+                             * (1500. * pi * self.r_rotor ** 2 -
+                                (self.power_hover + self.power_profile)
+                                / self.roc_vertical)
+                             )
         n_rotors_per_side = ceil(n_rotors_computed / 2)
         return n_rotors_per_side * 2
 
-    # @Attribute
-    # def number_of_propellers_cruise(self):
-    #     return (self.total_drag_coefficient * (self.cruise_velocity * 3.6) ** 2
-    #             * self.wing_area / (64. * self.r_propeller * pi * c_t * (
-    #                         mach_number_tip
-    #                         * sqrt(R * gamma * self.cruise_temperature)) ** 2)
+    @Attribute
+    def number_of_propellers_cruise(self):
+        return ceil(self.total_drag_coefficient * self.velocity ** 2
+                    * self.wing_area
+                    / (64. * self.r_propeller * pi * c_t
+                       * (mach_number_tip * self.cruise_speed_of_sound) ** 2)
+                    )
 
     @Attribute
     def power_climb(self):
@@ -388,15 +393,15 @@ class PAV(GeomBase):
     def thrust_hover(self):
         return (1. / 6. * self.n_blades * 6.6 * c_t / sigma_rotor
                 * self.cruise_density * self.r_rotor / r_over_chord_rotor
-                * (0.97 * mach_number_tip * (
-                    sqrt(R * gamma * self.cruise_temperature))) ** 2
+                * (0.97 * mach_number_tip * self.cruise_speed_of_sound) ** 2
                 * 0.97 * self.r_rotor)
 
     @Attribute
     def v_induced_climb(self):
         return (self.roc_vertical / 2
                 + sqrt((self.roc_vertical / 2) ** 2 * self.thrust_hover
-                       / (2 * self.cruise_density * pi * self.r_rotor)))
+                       / (2 * self.cruise_density * pi * self.r_rotor))
+                )
 
     @Attribute
     def power_roc(self):
@@ -404,15 +409,15 @@ class PAV(GeomBase):
 
     @Attribute
     def power_profile(self):
-        return (self.c_d_rotor * 1. / 8. * self.cruise_density *
-                self.r_rotor / r_over_chord_rotor * self.n_blades
-                * (mach_number_tip * (sqrt(R * gamma * self.cruise_temperature))) ** 3
+        return (self.c_d_rotor * 1. / 8. * self.cruise_density
+                * self.r_rotor / r_over_chord_rotor * self.n_blades
+                * (mach_number_tip * self.cruise_speed_of_sound) ** 3
                 * self.r_rotor)
 
     @Attribute
     def c_d_rotor(self):
         return (8. / (self.n_blades * self.r_rotor ** 2 / r_over_chord_rotor
-                / (pi * self.r_rotor ** 2)) * sqrt(c_t / 2.)
+                      / (pi * self.r_rotor ** 2)) * sqrt(c_t / 2.)
                 * (c_t / figure_of_merit - k_factor_rotor_drag * c_t))
 
     @Attribute
@@ -424,12 +429,6 @@ class PAV(GeomBase):
         return (1. / 2. * self.cruise_density * self.roc_vertical ** 2
                 * self.c_d_flatplate
                 * (self.wing_area + self.horizontal_tail_area))
-
-    @Attribute
-    def number_of_propellers_cruise(self):
-        return ceil(self.total_drag_coefficient * (self.cruise_velocity*3.6) ** 2
-                * self.wing_area / (64. * self.r_propeller * pi * c_t * (mach_number_tip
-                * sqrt(R * gamma * self.cruise_temperature)) ** 2))
 
     # -------------------------------------------------------------------------
     # Mostly fuselage related
@@ -573,8 +572,6 @@ class PAV(GeomBase):
     def v_horizontal_tail(self):
         return self.cruise_velocity * 0.85
 
-
-
     @Attribute
     def horizontal_tail_area(self):
         return 3
@@ -639,10 +636,9 @@ class PAV(GeomBase):
     # Propellers
     # -------------------------------------------------------------------------
 
-
     @Attribute
     def number_of_propellers(self):
-        return self.number_of_propellers_cruise # ceil(self.wing_area / 2)
+        return self.number_of_propellers_cruise  # ceil(self.wing_area / 2)
 
     @Input
     def number_of_vtol_propellers(self):
@@ -650,12 +646,12 @@ class PAV(GeomBase):
 
     @Attribute
     def propeller_radii(self):
-        return self.r_propeller # ([1 - 0.1 * self.number_of_propellers]
-               # * self.number_of_propellers)
+        return self.r_propeller  # ([1 - 0.1 * self.number_of_propellers]
+        # * self.number_of_propellers)
 
     @Input
     def vtol_propeller_radius(self):
-        return self.r_rotor #6 / self.number_of_vtol_propellers
+        return self.r_rotor  # 6 / self.number_of_vtol_propellers
 
     @Attribute
     def propeller_locations(self):
@@ -828,10 +824,16 @@ class PAV(GeomBase):
 
     @Attribute
     def vertical_position_of_skids(self):
-        return (- (0.5 + 0.2) * self.cabin_height
+        return (min((self.fuselage.nose_height - 0.2) * self.cabin_height -
+                    self.r_propeller,
+                    - (0.5 + 0.2) * self.cabin_height)
                 if self.wheels_included is False
-                else - (0.5 + 0.2) * self.cabin_height
-                     + self.wheel_radius + self.vertical_rod_length)
+                else min((self.fuselage.nose_height - 0.2)
+                         * self.cabin_height - self.r_propeller
+                         + self.wheel_radius + self.vertical_rod_length,
+                         - (0.5 + 0.2) * self.cabin_height + self.wheel_radius
+                         + self.vertical_rod_length)
+                )
 
     @Attribute
     def skid_locations(self):
