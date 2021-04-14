@@ -739,7 +739,7 @@ class PAV(GeomBase):
 
     @Attribute
     def vertical_tail_area(self):
-        return 6
+        return 2
 
     # ADJUST THIS THING !!!!!!!!!!
     @Attribute
