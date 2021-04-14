@@ -354,6 +354,8 @@ class PAV(GeomBase):
     n_blades = Input(4)  # between 2 and 5
     r_rotor = Input(.4)
     roc_vertical = Input(10)  # between 5 and 15 m/s is most common
+    c_d_flatplate - Input(1.28)
+    r_propeller = Input(0.4)
 
     #it now computes the number of rotors needed based on a given rotor diameter
 
@@ -380,7 +382,7 @@ class PAV(GeomBase):
                 * self.cruise_density * self.r_rotor / r_over_chord_rotor
                 * (0.97 * mach_number_tip * (
                     sqrt(R * gamma * self.cruise_temperature))) ** 2
-                * 0.97 * self.r_rotor * self.n_rotors)
+                * 0.97 * self.r_rotor)
 
     @Attribute
     def v_induced_climb(self):
@@ -397,7 +399,7 @@ class PAV(GeomBase):
         return (self.c_d_rotor * 1. / 8. * self.cruise_density *
                 self.r_rotor / r_over_chord_rotor * self.n_blades
                 * (mach_number_tip * (sqrt(R * gamma * self.cruise_temperature))) ** 3
-                * self.r_rotor * self.n_rotors)
+                * self.r_rotor)
 
     @Attribute
     def c_d_rotor(self):
@@ -414,6 +416,12 @@ class PAV(GeomBase):
         return (1. / 2. * self.cruise_density * self.roc_vertical ** 2
                 * self.c_d_flatplate
                 * (self.wing_area + self.horizontal_tail_area))
+
+    # @Attribute
+    # def number_of_propellers_cruise(self):
+    #     return ceil(self.total_drag_coefficient * (self.cruise_velocity*3.6) ** 2
+    #             * self.wing_area / (64. * self.r_propeller * pi * c_t * (mach_number_tip
+    #             * sqrt(R * gamma * self.cruise_temperature)) ** 2))
 
     # -------------------------------------------------------------------------
     # Mostly fuselage related
