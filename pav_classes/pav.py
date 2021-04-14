@@ -282,7 +282,7 @@ class PAV(GeomBase):
                                    component]))
         return mass
 
-    @Attribute
+    @Input
     def centre_of_gravity(self):
         # count = 0
         # x_value = 0
@@ -579,21 +579,49 @@ class PAV(GeomBase):
     def cruise_velocity_horizontal_tail(self):
         return self.velocity * 0.85
 
+    @Attribute
+    def horizontal_tail_area(self):
+        return (self.horizontal_tail_area_controllability if
+                self.horizontal_tail_area_controllability >
+                self.horizontal_tail_area_stability
+                else self.horizontal_tail_area_stability)
+
+    @Attribute
+    def horizontal_tail_area_controllability(self):
+        return (((self.centre_of_gravity[0] * 0.95
+                  - self.aerodynamic_center_wing_and_fuselage)
+                 * self.lift_coefficient_alpha_wing_and_fuselage
+                 - self.lift_coefficient_alpha_wing
+                 * (self.centre_of_gravity[0] * 0.95
+                    - self.aerodynamic_center_wing_and_fuselage)
+                 / self.main_wing.mean_aerodynamic_chord)
+                * (self.velocity / self.cruise_velocity_horizontal_tail) ** 2
+                * self.wing_area * self.main_wing.mean_aerodynamic_chord
+                / (abs((self.wing_location.x
+                        + tan(radians(self.wing_sweep))
+                        * self.main_wing.lateral_position_of_mean_aerodynamic_chord)
+                       - self.horizontal_tail.position.x)
+                   * self.lift_coefficient_alpha_horizontal_tail))
+
     # Needed: x coordinate cog whole thing, x coordinate cog wing, x coordinate cog tail, mac
     @Attribute
     def horizontal_tail_area_stability(self):
         return (
-                (self.centre_of_gravity.x
+                (self.centre_of_gravity[0] * 1.05
                  - self.aerodynamic_center_wing_and_fuselage)
                 / (1 - self.down_wash)
                 * self.lift_coefficient_alpha_wing_and_fuselage
                 / self.lift_coefficient_alpha_horizontal_tail
                 * (self.velocity / self.cruise_velocity_horizontal_tail) ** 2
-                * self.wing_area * self.mean_aerodynamic_chord
-                / abs(self.center_of_gravity_of_components['main_wing'][1]
-                      - self.center_of_gravity_of_components[
-                          'horizontal_tail'][1])
-        )
+                * self.wing_area * self.main_wing.mean_aerodynamic_chord
+                / abs((self.wing_location.x
+                       + tan(radians(self.wing_sweep))
+                       * self.main_wing.lateral_position_of_mean_aerodynamic_chord)
+                      - self.horizontal_tail.position.x
+                      # + tan(radians(self.horizontal_tail.sweep))
+                      # *
+                      # self.horizontal_tail.lateral_position_of_mean_aerodynamic_chord))
+                      ))
 
     @Attribute
     def aerodynamic_center_wing_and_fuselage(self):
@@ -672,26 +700,26 @@ class PAV(GeomBase):
                   + tan(radians(self.wing_sweep))
                   * self.main_wing.lateral_position_of_mean_aerodynamic_chord)
         wing_z = (self.main_wing.position.z
-                  + tan(radians(self.wing.dihedral))
+                  + tan(radians(self.main_wing.dihedral))
                   * self.main_wing.lateral_position_of_mean_aerodynamic_chord)
-        h_t_x = (self.horizontal_tail.position.x
-                 + tan(radians(self.horizontal_tail.sweep))
-                 *
-                 self.horizontal_tail.lateral_position_of_mean_aerodynamic_chord)
-        h_t_z = (self.horizontal_tail.position.z
-                 + tan(radians(
-                    self.horizontal_tail.dihedral))
-                 *
-                 self.horizontal_tail.lateral_position_of_mean_aerodynamic_chord)
-        k_epsilon_wing_sweep = ((0.1124 + 0.1265 * self.wing_sweep
-                                 + 0.1766 * self.wing_sweep ** 2)
-                                / ((h_t_x - wing_x) ** 2)
-                                + 0.1024 / (h_t_x - wing_x) + 2.)
-        k_epsilon_wing_zero_sweep = (0.1124 / ((h_t_x - wing_x) ** 2)
-                                     + 0.1024 / (h_t_x - wing_x) + 2.)
-        distance_wing_tail_x = abs(h_t_x - wing_x) / (self.wing_span / 2.)
+        h_t_x = self.horizontal_tail.position.x
+        # + tan(radians(self.horizontal_tail.sweep))
+        # *
+        # self.horizontal_tail.lateral_position_of_mean_aerodynamic_chord)
+        h_t_z = self.horizontal_tail.position.z
+        # + tan(radians(
+        #    self.horizontal_tail.dihedral))
+        # *
+        # self.horizontal_tail.lateral_position_of_mean_aerodynamic_chord)
+        distance_wing_tail_x = abs(h_t_x - wing_x)
         distance_wing_tail_z = abs(wing_z - h_t_z)
         r = distance_wing_tail_x / (self.wing_span / 2)
+        k_epsilon_wing_sweep = ((0.1124 + 0.1265 * self.wing_sweep
+                                 + 0.1766 * self.wing_sweep ** 2)
+                                / (r ** 2)
+                                + 0.1024 / r + 2.)
+        k_epsilon_wing_zero_sweep = (0.1124 / (r ** 2)
+                                     + 0.1024 / r + 2.)
         return (k_epsilon_wing_sweep / k_epsilon_wing_zero_sweep
                 * (r / (r ** 2 + distance_wing_tail_z ** 2)
                    * 0.4875
@@ -711,7 +739,7 @@ class PAV(GeomBase):
 
     @Attribute
     def vertical_tail_area(self):
-        return 2
+        return 6
 
     # ADJUST THIS THING !!!!!!!!!!
     @Attribute
@@ -1141,7 +1169,7 @@ class PAV(GeomBase):
                               airfoils=['2218', '2212'],
                               is_mirrored=True,
                               span=sqrt(self.wing_aspect_ratio
-                                        * self.horizontal_tail_area_stability),
+                                        * self.horizontal_tail_area),
                               aspect_ratio=self.wing_aspect_ratio * 0.7,
                               taper_ratio=0.4,
                               sweep=self.horizontal_tail_sweep,

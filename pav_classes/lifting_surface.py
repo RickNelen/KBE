@@ -74,7 +74,7 @@ class LiftingSurface(GeomBase):
 
     @Attribute
     def lateral_position_of_mean_aerodynamic_chord(self):
-        return (self.wing_span / 6
+        return (self.span / 6
                 * (self.root_chord + 2 * self.tip_chord)
                 / (self.root_chord + self.tip_chord))
 

@@ -78,7 +78,7 @@ if __name__ == '__main__':
     analysis = AvlAnalysis(aircraft=pav,
                            case_settings=cases)
 
-    display(analysis)
+    display(pav)
     print(pav.pav_components)
     # print(analysis.lift_over_drag)
     #
