@@ -180,8 +180,8 @@ class LiftingSurface(GeomBase):
 
     @Part
     def mirrored(self):
-        return MirroredSurface(quantify=self.number_of_profiles - 1,
-                               surface_in=
+        return MirroredShape(quantify=self.number_of_profiles - 1,
+                               shape_in=
                                self.surface.faces[child.index],
                                reference_point=self.position.point,
                                vector1=self.position.Vx,
