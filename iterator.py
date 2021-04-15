@@ -20,15 +20,37 @@ from pav_classes.pav import PAV
 class Iterator(Base):
     allowable_mass_difference = Input(50)
 
+    # @Attribute
+    # def new_maximum_take_off_weight(self):
+    #     pav = PAV(name='initial')
+    #     while abs(pav.expected_maximum_take_off_weight -
+    #               pav.maximum_take_off_weight) > self.allowable_mass_difference:
+    #         mass = pav.expected_maximum_take_off_weight
+    #         pav = PAV(name='intermediate',
+    #                   maximum_take_off_weight=mass)
+    #     return pav.expected_maximum_take_off_weight
+
     @Attribute
-    def new_maximum_take_off_weight(self):
-        pav = PAV(name='initial')
-        while abs(pav.expected_maximum_take_off_weight -
-                  pav.maximum_take_off_weight) > self.allowable_mass_difference:
-            mass = pav.expected_maximum_take_off_weight
-            pav = PAV(name='intermediate',
-                      maximum_take_off_weight=mass)
-        return pav.expected_maximum_take_off_weight
+    def wing_positioning(self):
+        start = 0.1
+        step = 0.03
+        pav = PAV(name='initial',
+                  longitudinal_wing_position=start,
+                  centre_of_gravity=[2, 0, 0.1])
+        old_tail_surface = pav.horizontal_tail_area
+        next_pav = PAV(name='next',
+                       longitudinal_wing_position=start + step,
+                       centre_of_gravity=[2, 0, 0.1])
+        next_tail_surface = next_pav.horizontal_tail_area
+        ratio = start + step
+        while next_tail_surface < old_tail_surface:
+            old_tail_surface = next_tail_surface
+            ratio += step
+            next_pav = PAV(name='next',
+                           longitudinal_wing_position=ratio,
+                           centre_of_gravity=[2, 0, 0.1])
+            next_tail_surface = next_pav.horizontal_tail_area
+        return ratio - step
 
     @Part
     def initial_aircraft(self):
@@ -37,11 +59,13 @@ class Iterator(Base):
     @Part
     def new_aircraft(self):
         return PAV(name='new',
-                   maximum_take_off_weight=self.new_maximum_take_off_weight,
+                   longitudinal_wing_position=self.wing_positioning,
+                   centre_of_gravity=[2, 0, 0.1],
                    primary_colour='green')
 
 
 if __name__ == '__main__':
     from parapy.gui import display
+
     obj = Iterator()
     display(obj)

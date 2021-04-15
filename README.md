@@ -56,6 +56,41 @@ The code itself is located in the folder 'pav_classes':
   also contains the flight conditions, some of which are not complete yet. 
   Based on these flight conditions, it loads parts and overwrites the 
   default inputs;
+  
+This file contains the complete personal aerial vehicle class. It is
+structured in the following way:
+
+- Outside the class:
+
+    - Imports and paths
+    - Constants
+    - Functions
+
+- Inside the class:
+
+    - Inputs
+    - Input checks
+    - Flight conditions
+    - Flight performance
+    - Battery
+    - Mass
+    - Fuselage
+    - Wing
+    - Horizontal tail
+    - Vertical tail
+    - Skids
+    - Skid connections
+    - Wheels
+    - Cruise propellers
+    - VTOL rotors
+    - Interfaces:
+
+        - AVL
+        - STEP
+
+Note that the attributes and parts are both placed in the relevant sections, 
+i.e. the fuselage part is placed below the fuselage related attributes, 
+and above the wing related attributes.
 - propeller.py contains the class Propeller, which returns a single 
   'assembly' of propeller elements, i.e. all the blades, the hub and 
   (eventually also) the nacelle. Note that it is not working properly yet 

@@ -20,6 +20,45 @@ from kbeutils.geom import *
 import kbeutils.avl as avl
 from parapy.core import *
 from parapy.geom import *
+from .pav import PAV
+from math import *
+
+
+class Connections(GeomBase):
+
+    @Attribute
+    def front_connection_chord(self):
+        return (self.PAV.skid_height * 0.9
+                / (float(self.pav.vertical_skid_profile) / 100))
+
+    @Attribute
+    def front_connection_location(self):
+        return translate(self.position,
+                         self.position.Vx,
+                         self.pav.length_of_fuselage_nose
+                         - self.pav.front_connection_chord / 4,
+                         self.position.Vz,
+                         (2 * self.pav.fuselage.nose_height - 1)
+                         * self.pav.cabin_height / 6)
+
+    @Attribute
+    def front_connection_vertical_length(self):
+        return (self.pav.vertical_position_of_skids -
+                self.pav.front_connection_location.z)
+
+    @Attribute
+    def front_connection_horizontal_length(self):
+        return (self.pav.lateral_position_of_skids -
+                self.pav.front_connection_location.y)
+
+    @Attribute
+    def front_connection_span(self):
+        return self.pav.front_connection_horizontal_length
+
+    @Attribute
+    def front_connection_dihedral(self):
+        return degrees(atan(self.pav.front_connection_vertical_length /
+                            self.pav.front_connection_horizontal_length))
 
 #
 # class Wheels(LoftedSolid):

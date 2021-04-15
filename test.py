@@ -65,7 +65,7 @@ if __name__ == '__main__':
               maximum_span=max_span,
               quality_level=quality_choice,
               wheels_included=wheels_choice,
-              set_cruise_velocity=cruise_speed,
+              cruise_velocity=cruise_speed,
               primary_colour=primary_colour_in,
               secondary_colour=secondary_colour_in,
               name='PAV')
