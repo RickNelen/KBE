@@ -118,20 +118,6 @@ class Fuselage(GeomBase):
                            int(self.number_of_positions / 2))
         return np.append(nose, tail)
 
-    # @Attribute
-    # def relative_locations_nose(self):
-    #     return np.linspace(0, self.relative_nose_length,
-    #                        int(self.number_of_positions / 2))
-    #
-    # @Attribute
-    # def relative_locations_tail(self):
-    #     return np.linspace(1 - self.relative_tail_length, 1,
-    #                        int(self.number_of_positions / 2))
-    #
-    # @Attribute
-    # def x_locations_nose(self):
-    #     return self.total_length * self.relative_locations_nose
-
     # Shape of the nose cone
 
     @Attribute
@@ -172,10 +158,6 @@ class Fuselage(GeomBase):
                            * self.height))
                 for i in self.relative_locations
                 if i <= self.relative_nose_length]
-
-    # @Attribute
-    # def x_locations_tail(self):
-    #     return self.total_length * self.relative_locations_tail
 
     # Shape of the tail cone
 

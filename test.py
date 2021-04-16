@@ -78,7 +78,7 @@ if __name__ == '__main__':
     analysis = AvlAnalysis(aircraft=pav,
                            case_settings=cases)
 
-    display(pav)
+    display(analysis)
     print(pav.pav_components)
     # print(analysis.lift_over_drag)
     #
@@ -124,9 +124,9 @@ prim_col_cost = '${:,.2f}'.format(primary_price)
 sec_col_cost = '${:,.2f}'.format(secondary_price)
 total_cost = '${:,.2f}'.format(total_price)
 
-cost_names = ['Basic price: \n', 'Additional cost for cabin desgin: \n',
+cost_names = ['Basic price: \n', 'Additional cost for cabin design: \n',
               'Cost for primary colour: \n', 'Cost for secondary colour: \n']
-cost_names.insert(2, 'Additonal cost for wheels: \n') if pav.wheels_included \
+cost_names.insert(2, 'Additional cost for wheels: \n') if pav.wheels_included \
                                                          is True else None
 
 cost_values = [base_cost + '\n', quality_cost + '\n', prim_col_cost + '\n',

@@ -8,13 +8,13 @@ class Wheels(GeomBase):
 
     #: wheel radius
     #: :type: float
-    wheel_radius = Input(0.2)
+    wheel_radius = Input(0.33)
     #: wheel sections
     #: :type: collections.Sequence[float]
     wheel_sections = Input([90, 100, 100, 100, 100, 100, 100, 100, 100, 90])
     #: wheel length
     #: :type: float
-    wheel_length = Input(0.08)
+    wheel_length = Input(0.13)
 
     @Attribute
     def section_radius(self):

@@ -73,6 +73,7 @@ R = 287
 
 lbs_to_kg = 0.45359237
 ft_to_m = 0.3048
+inch_to_m = 0.0254
 
 c_t = 0.0050  # between 0.0050 and 0.0060
 c_t_cruise = 0.10  # between 0.02 and 0.16
@@ -131,7 +132,8 @@ class PAV(GeomBase):
     r_rotor = Input(.4)
     roc_vertical = Input(10)  # between 5 and 15 m/s is most common
     c_d_flatplate = Input(1.28)
-    r_propeller = Input(0.5)
+    r_propeller = Input(0.3)
+
 
     @Input
     def design_cl(self):
@@ -217,6 +219,7 @@ class PAV(GeomBase):
         # Obtain the induced drag from the AVL analysis
         analysis = AvlAnalysis(aircraft=self,
                                case_settings=cases)
+        print(analysis.induced_drag[cases[0][0]])
         return analysis.induced_drag[cases[0][0]]
 
     @Attribute
@@ -392,11 +395,11 @@ class PAV(GeomBase):
                               ** - 0.49)
         mass_landing_gear = 20
 
-        return {'main_wing': mass_wing,
-                'horizontal_tail': mass_horizontal_tail,
-                'vertical_tail': mass_vertical_tail,
+        return {'main_wing': 25 * self.wing_area,
+                'horizontal_tail': 25 * self.horizontal_tail_area,
+                'vertical_tail': 25 * self.vertical_tail_area,
                 'wheels': mass_landing_gear,
-                'fuselage': mass_fuselage,
+                'fuselage': 50 * self.fuselage_length,
                 'skids': 50,
                 'propeller': 40}
 
@@ -415,37 +418,40 @@ class PAV(GeomBase):
                                    component]))
         return mass
 
+    @Attribute
+    def centre_of_gravity_result(self):
+        count = 0
+        x_value = 0
+        y_value = 0
+        z_value = 0
+        for component in self.center_of_gravity_of_components:
+            if type(self.pav_components[component]) is not list:
+                count += 1
+                x_value += (self.center_of_gravity_of_components[component][0]
+                            * self.mass_of_components[component])
+                y_value += (self.center_of_gravity_of_components[component][1]
+                            * self.mass_of_components[component])
+                z_value += (self.center_of_gravity_of_components[component][2]
+                            * self.mass_of_components[component])
+            else:
+                for index in range(len(self.pav_components[component])):
+                    count += 1
+                    x_value += (self.center_of_gravity_of_components[
+                                    component][index][0]
+                                * self.mass_of_components[component])
+                    y_value += (self.center_of_gravity_of_components[
+                                    component][index][1]
+                                * self.mass_of_components[component])
+                    z_value += (self.center_of_gravity_of_components[
+                                    component][index][2]
+                                * self.mass_of_components[component])
+        return [x_value / self.mass,
+                y_value / self.mass,
+                z_value / self.mass]
+
     @Input
     def centre_of_gravity(self):
-        # count = 0
-        # x_value = 0
-        # y_value = 0
-        # z_value = 0
-        # for component in self.center_of_gravity_of_components:
-        #     if type(self.pav_components[component]) is not list:
-        #         count += 1
-        #         x_value += (self.center_of_gravity_of_components[component][0]
-        #                     * self.mass_of_components[component])
-        #         y_value += (self.center_of_gravity_of_components[component][1]
-        #                     * self.mass_of_components[component])
-        #         z_value += (self.center_of_gravity_of_components[component][2]
-        #                     * self.mass_of_components[component])
-        #     else:
-        #         for index in range(len(self.pav_components[component])):
-        #             count += 1
-        #             x_value += (self.center_of_gravity_of_components[
-        #                             component][index][0]
-        #                         * self.mass_of_components[component])
-        #             y_value += (self.center_of_gravity_of_components[
-        #                             component][index][1]
-        #                         * self.mass_of_components[component])
-        #             z_value += (self.center_of_gravity_of_components[
-        #                             component][index][2]
-        #                         * self.mass_of_components[component])
-        # return [x_value / self.mass,
-        #         y_value / self.mass,
-        #         z_value / self.mass]
-        return [2.5, 0, 0.1]
+        return [2., 0, 0.1]
 
         # HOW DO WE TREAT THE WEIGHT ESTIMATIONS?
 
@@ -456,9 +462,10 @@ class PAV(GeomBase):
 
     @Input
     def maximum_take_off_weight(self):
+        fr = 1.5 + (self.range - 100) * 1e3 * 0.0025 / 1e3
+        fv = 1.5 + (self.velocity - 100) * 0.0025
         # MTOW in Newtons
-        return ((3000 + 500
-                 + self.number_of_passengers * 70) * g)
+        return 3.5 * fr * fv * (self.number_of_passengers * 70) * g
 
     # Show a point indicating the c.g.
     @Part
@@ -551,6 +558,7 @@ class PAV(GeomBase):
                         width=self.cabin_width,
                         cabin_height=self.cabin_height,
                         cabin_length=self.cabin_length,
+                        door_height=self.cabin_height-0.15,
                         nose_height=-0.2,
                         tail_height=0.3,
                         color=self.primary_colour)
@@ -564,9 +572,11 @@ class PAV(GeomBase):
     @Attribute
     def wing_area(self):
         # Required wing area for cruise
-        return (self.maximum_take_off_weight
+        area = (self.maximum_take_off_weight
                 / (0.5 * self.cruise_density * self.velocity ** 2
                    * self.design_cl))
+        print(area)
+        return area
 
     @Attribute
     def intended_wing_aspect_ratio(self):
@@ -605,7 +615,7 @@ class PAV(GeomBase):
     @Input
     def longitudinal_wing_position(self):
         # This input is used to iterate for wing positioning
-        return 0.1
+        return 0.5
 
     @Attribute
     def wing_location(self):
@@ -912,8 +922,10 @@ class PAV(GeomBase):
         # The horizontal tail area must comply with both the controllability
         # and the stability; thus, the area related to the most stringent
         # requirement is returned
-        return max(self.horizontal_tail_area_controllability,
+        area = max(self.horizontal_tail_area_controllability,
                    self.horizontal_tail_area_stability)
+        print('HT:', area)
+        return area
 
     # The horizontal tail parts, using the attributes above; the part
     # horizontal_tail is used as a reference; right_horizontal_tail and
@@ -968,6 +980,7 @@ class PAV(GeomBase):
     @Attribute
     def vertical_tail_arm(self):
         return abs(self.vertical_tail_root_location
+                   + tan(radians(self.vertical_tail_sweep))
                    - self.centre_of_gravity[0])
 
     @Input
@@ -976,7 +989,7 @@ class PAV(GeomBase):
 
     @Input
     def rudder_deflection(self):
-        return radians(60)
+        return radians(30)
 
     @Attribute
     def rudder_lift_coefficient_ratio(self):
@@ -993,14 +1006,14 @@ class PAV(GeomBase):
         # A propeller aircraft with fixed pitch propeller is assumed
         yaw_moment_drag = 0.25 * self.yaw_moment_propeller
         # K factor to correct for the sweep of the wing
-        k = ((1 - 0.08 * (cos(radians(self.wing_sweep))) ** 2)
-             * (cos(radians(self.wing_sweep))) ** (3 / 4))
+        k = ((1 - 0.08 * (cos(radians(self.vertical_tail_sweep))) ** 2)
+             * (cos(radians(self.vertical_tail_sweep))) ** (3 / 4))
         # Obtain the required surface
         return ((self.yaw_moment_propeller + yaw_moment_drag)
                 / (0.5 * self.cruise_density * self.velocity ** 2
-                    * self.rudder_deflection
+                   * self.rudder_deflection
                    * self.rudder_lift_coefficient_ratio
-                    * self.rudder_lift_coefficient
+                   * self.rudder_lift_coefficient
                    * k * self.vertical_tail_arm))
 
     # Required for stability
@@ -1055,55 +1068,63 @@ class PAV(GeomBase):
                 * self.fuselage_length ** 2 * self.cabin_height
                 / (self.wing_area * self.wing_span))
 
-    @Attribute
+    @Input
     def minimum_side_slip_derivative(self):
-        return 0.002
+        return 0.0571
 
     @Attribute
     def vertical_tail_area(self):
-        return max(self.vertical_tail_area_controllability,
-                   self.vertical_tail_area_stability)
+        # Return the area for each single vertical tail, i.e. divide the
+        # total required area by the number of tails (which is 2)
+        area = max(self.vertical_tail_area_controllability,
+                   self.vertical_tail_area_stability) / 2
+        print('VT:', area)
+        return area
 
     # ADJUST THIS THING !!!!!!!!!!
 
     @Attribute
     def vertical_skid_profile(self):
-        return '0018'
+        return '0012'
 
     @Attribute
     def vertical_tail_sweep(self):
-        root_position = self.vertical_tail_root_location
-        tip_position = (self.horizontal_tail.position.x
-                        + self.lateral_position_of_skids
-                        * tan(radians(self.horizontal_tail_sweep)))
-        return degrees(atan((tip_position - root_position)
-                            / self.vertical_tail_span))
+        return 35
 
-    @Attribute
-    def vertical_tail_tip_chord(self):
-        return chord_length(self.horizontal_tail.root_chord,
-                            self.horizontal_tail.tip_chord,
-                            self.lateral_position_of_skids
-                            / (self.horizontal_tail.span / 2))
+    #     root_position = self.vertical_tail_root_location
+    #     tip_position = (self.horizontal_tail.position.x
+    #                     + self.lateral_position_of_skids
+    #                     * tan(radians(self.horizontal_tail_sweep)))
+    #     return degrees(atan((tip_position - root_position)
+    #                         / self.vertical_tail_span))
+
+    # @Attribute
+    # def vertical_tail_tip_chord(self):
+    #     return chord_length(self.horizontal_tail.root_chord,
+    #                         self.horizontal_tail.tip_chord,
+    #                         self.lateral_position_of_skids
+    #                         / (self.horizontal_tail.span / 2))
 
     @Attribute
     def vertical_tail_span(self):
-        return (self.horizontal_tail.position.z
-                + self.lateral_position_of_skids
-                * tan(radians(self.horizontal_tail.dihedral))
-                - self.vertical_position_of_skids)
+        return sqrt(self.vertical_tail_aspect_ratio *
+                    self.vertical_tail_area)
+        # return (self.horizontal_tail.position.z
+        #         + self.lateral_position_of_skids
+        #         * tan(radians(self.horizontal_tail.dihedral))
+        #         - self.vertical_position_of_skids)
 
     @Attribute
     def vertical_tail_root_chord(self):
-        return (2 * (self.vertical_tail_area / 2)
-                / self.vertical_tail_span - self.vertical_tail_tip_chord)
+        return (2 * (self.vertical_tail_area / self.vertical_tail_span)
+                / (1 + self.vertical_tail_taper_ratio))
 
     @Attribute
     def vertical_tail_taper_ratio(self):
-        return 0.8
+        return 0.6
         # return self.vertical_tail_tip_chord / self.vertical_tail_root_chord
 
-    @Attribute
+    @Input
     def vertical_tail_aspect_ratio(self):
         return 2
         # return (self.vertical_tail_span /
@@ -1113,17 +1134,19 @@ class PAV(GeomBase):
     @Attribute
     def vertical_tail_root_location(self):
         # This provides the location relative to the nose
+        vertical = (self.horizontal_tail.position.z
+                    - self.vertical_position_of_skids)
         longitudinal = (self.horizontal_tail.position.x
                         + self.lateral_position_of_skids
                         * tan(radians(self.horizontal_tail_sweep))
-                        )
+                        - vertical * tan(radians(self.vertical_tail_sweep)))
         return longitudinal
 
     # Parts: the vertical_tail is a reference part based on the above
     # attributes; right_vertical_tail and left_vertical_tail are instances
     # visible in the GUI
 
-    @Part(in_tree=False)
+    @Part(in_tree=True)
     def vertical_tail(self):
         return LiftingSurface(name='vertical_tails',
                               quantify=len(self.skid_locations),
@@ -1150,20 +1173,20 @@ class PAV(GeomBase):
                                   self.position.Vx),
                               color=self.primary_colour)
 
-    @Part
-    def right_vertical_tail(self):
-        return SubtractedSolid(shape_in=self.vertical_tail[1].surface,
-                               tool=[self.right_horizontal_tail,
-                                     self.landing_skids[1]],
-                               color='silver')
-
-    @Part
-    def left_vertical_tail(self):
-        return MirroredShape(shape_in=self.right_vertical_tail,
-                             reference_point=self.position,
-                             vector1=self.position.Vx,
-                             vector2=self.position.Vz,
-                             color='silver')
+    # @Part
+    # def right_vertical_tail(self):
+    #     return SubtractedSolid(shape_in=self.vertical_tail[1].surface,
+    #                            tool=[self.right_horizontal_tail,
+    #                                  self.landing_skids[1]],
+    #                            color='silver')
+    #
+    # @Part
+    # def left_vertical_tail(self):
+    #     return MirroredShape(shape_in=self.right_vertical_tail,
+    #                          reference_point=self.position,
+    #                          vector1=self.position.Vx,
+    #                          vector2=self.position.Vz,
+    #                          color='silver')
 
     # -------------------------------------------------------------------------
     # SKIDS
@@ -1223,14 +1246,14 @@ class PAV(GeomBase):
     def skid_height(self):
         # Make sure that the skid height is smaller than the width if they
         # would be smaller than 0.1 m; otherwise 0.1 m is set as the height
-        return min(0.1, 0.9 * self.skid_width)
+        return min(0.2, 0.9 * self.skid_width)
 
     @Attribute
     def skid_width(self):
         # Ensure that the width of the skid is 5% larger than the maximum
         # width of the vertical tail
-        return (1.05 * self.vertical_tail_root_chord *
-                (float(self.vertical_skid_profile) / 100))
+        return max(1.05 * self.vertical_tail_root_chord *
+                   (float(self.vertical_skid_profile) / 100), 0.15)
 
     # Positioning of the skids
 
@@ -1324,8 +1347,9 @@ class PAV(GeomBase):
     # The chord is adjusted such that the thickness is 90% of the height of
     # the skids
     def front_connection_chord(self):
-        return (self.skid_height * 0.9
-                / (float(self.vertical_skid_profile) / 100))
+        return min((self.skid_height * 0.8
+                    / (float(self.vertical_skid_profile) / 100)),
+                   0.5)
 
     @Attribute
     # Obtain the vertical distance that has to be filled by the connection
@@ -1396,10 +1420,13 @@ class PAV(GeomBase):
 
     # Wheel positioning
 
-    # ADJUST THIS LATER
     @Attribute
     def number_of_wheels(self):
-        expected_number_of_wheels = self.wing_aspect_ratio  # Adjust this!!!!
+        load_factor_landing = 3.
+        max_load_per_tire_kg = 4086
+        expected_number_of_wheels = (load_factor_landing
+                                     * self.maximum_take_off_weight
+                                     / (max_load_per_tire_kg * g))
         number_of_wheels = (2 * ceil(expected_number_of_wheels / 2)
                             if expected_number_of_wheels >= 4 else 4)
         return number_of_wheels
@@ -1429,11 +1456,11 @@ class PAV(GeomBase):
 
     @Attribute
     def wheel_radius(self):
-        return 0.2
+        return 18 / 2 * inch_to_m
 
     @Attribute
     def wheel_width(self):
-        return 0.15
+        return 5.7 * inch_to_m
 
     @Attribute
     def rod_radius(self):
@@ -1529,18 +1556,42 @@ class PAV(GeomBase):
 
     @Attribute
     def number_of_propellers(self):
-        return ceil(self.total_drag_coefficient * self.velocity ** 2
-                    * self.wing_area * pi ** 2
-                    / self.thrust_per_propeller)
+        required = ceil(self.total_drag_coefficient * self.velocity ** 2
+                        * self.wing_area * self.cruise_density / 2
+                        / self.thrust_per_propeller)
+        allowed = (self.wing_span - self.cabin_width - 3 *
+                   self.propeller_radii) / (2 * self.r_propeller)
+        if required > allowed:
+            message = 'The propeller radius is too small, yielding too many ' \
+                      'propellers to fit on the wing. Please reduce the ' \
+                      'propeller radius.'
+            generate_warning('Warning: value needs to be changed', message)
+            return allowed
+        else:
+            return required
+
+        # return min(ceil(self.total_drag_coefficient * self.velocity ** 2
+        #                 * self.wing_area * self.cruise_density / 2
+        #                 / self.thrust_per_propeller),
+        #            (self.wing_span - self.cabin_width - 3 *
+        #             self.propeller_radii) / (2 * self.r_propeller))
 
     @Attribute
     def propeller_radii(self):
-        return self.r_propeller
+        radius = self.r_propeller
+        # while (2 * floor(self.number_of_propellers / 2) * 2.2 * radius >
+        #        (self.wing_span - self.cabin_width - 3 * self.radius)):
+        #     radius += 0.05
+        return radius
 
     @Attribute
     def thrust_per_propeller(self):
-        return (8. * self.r_propeller ** 2 * c_t_cruise
-                * (mach_number_tip * self.cruise_speed_of_sound) ** 2)
+        return (c_t_cruise * self.cruise_density
+                # RPS
+                * (mach_number_tip * self.cruise_speed_of_sound
+                   / (2 * pi * self.propeller_radii)) ** 2
+                # Diameter
+                * (2 * self.propeller_radii) ** 4)
 
     @Attribute
     def propeller_locations(self):
@@ -1564,9 +1615,11 @@ class PAV(GeomBase):
         # Position each propeller in y-direction on one wing; make sure they
         # are placed such that the most inboard propeller tip still is 0.5
         # propeller radius away from the fuselage
-        y_shift = [(1 - (semi_span - self.cabin_width / 2
-                         - 1.5 * self.r_propeller) / semi_span
-                    * index / one_side)
+        y_shift = [self.cabin_width / 2 + 1.5 * self.propeller_radii
+                   + ((semi_span
+                       - self.cabin_width / 2
+                       - 1.5 * self.propeller_radii) / semi_span
+                      * index / one_side)
                    * self.wing_span / 2
                    for index in range(one_side)]
 
@@ -1578,7 +1631,7 @@ class PAV(GeomBase):
                                     self.main_wing.root_chord,
                                     self.main_wing.tip_chord,
                                     y_shift[index] / semi_span)
-                                - self.r_propeller * tan(sweep),
+                                - self.propeller_radii * tan(sweep),
                                 self.wing_location.Vy,
                                 y_shift[index],
                                 self.wing_location.Vz,
@@ -1598,13 +1651,13 @@ class PAV(GeomBase):
         return Propeller(name='cruise_propellers',
                          quantify=len(self.propeller_locations),
                          number_of_blades=self.n_blades,
-                         blade_radius=self.r_propeller,
+                         blade_radius=self.propeller_radii,
                          nacelle_length=(0.55 * chord_length(
                              self.main_wing.root_chord,
                              self.main_wing.tip_chord,
                              abs(self.propeller_locations[
                                      child.index].y / (self.wing_span / 2)))
-                                         + self.r_propeller
+                                         + self.propeller_radii
                                          * tan(radians(self.wing_sweep))),
                          nacelle_included=
                          (False if child.index == 0
@@ -1770,9 +1823,9 @@ class PAV(GeomBase):
     @Attribute
     def avl_surfaces(self):
         return [self.main_wing.avl_surface,
-                self.horizontal_tail.avl_surface,
-                self.vertical_tail[0].avl_surface,
-                self.vertical_tail[1].avl_surface]
+                self.horizontal_tail.avl_surface]
+                # self.vertical_tail[0].avl_surface,
+                # self.vertical_tail[1].avl_surface]
 
     @Part
     def avl_configuration(self):
