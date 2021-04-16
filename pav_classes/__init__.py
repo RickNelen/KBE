@@ -11,6 +11,7 @@ from .skids import Skid
 from .wheels import Wheels, Rods
 from .avl_configurator import AvlAnalysis
 from .wheels1 import Connections
+from .functions import *
 # import os.path
 #
 # from math import *

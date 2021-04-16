@@ -37,11 +37,12 @@ class Iterator(Base):
         pav = PAV(name='initial',
                   longitudinal_wing_position=start,
                   centre_of_gravity=[2, 0, 0.1])
-        old_tail_surface = pav.horizontal_tail_area
+        old_tail_surface = pav.horizontal_tail_area + pav.vertical_tail_area
         next_pav = PAV(name='next',
                        longitudinal_wing_position=start + step,
                        centre_of_gravity=[2, 0, 0.1])
-        next_tail_surface = next_pav.horizontal_tail_area
+        next_tail_surface = (next_pav.horizontal_tail_area
+                             + pav.vertical_tail_area)
         ratio = start + step
         while next_tail_surface < old_tail_surface:
             old_tail_surface = next_tail_surface
@@ -49,7 +50,8 @@ class Iterator(Base):
             next_pav = PAV(name='next',
                            longitudinal_wing_position=ratio,
                            centre_of_gravity=[2, 0, 0.1])
-            next_tail_surface = next_pav.horizontal_tail_area
+            next_tail_surface = (next_pav.horizontal_tail_area
+                                 + pav.vertical_tail_area)
         return ratio - step
 
     @Part

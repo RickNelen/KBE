@@ -56,6 +56,7 @@ from .propeller import Propeller
 from .skids import Skid
 from .wheels import Wheels, Rods
 from .avl_configurator import AvlAnalysis
+from .functions import *
 
 _module_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                            os.pardir))
@@ -87,30 +88,9 @@ k_factor_rotor_drag = 1.15  # between 1.1 and 1.2
 
 design_lift_coefficient = 0.5
 
-
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
-
-def generate_warning(warning_header, message):
-    from tkinter import Tk, mainloop, X, messagebox
-
-    window = Tk()
-    window.withdraw()
-    messagebox.showwarning(warning_header, message)
-
-
-def chord_length(root_chord, tip_chord, span_position):
-    return root_chord - (root_chord - tip_chord) * span_position
-
-
-def sweep_to_sweep(x_over_c_start, sweep_start, x_over_c_end, aspect_ratio,
-                   taper_ratio):
-    tan_sweep_end = (tan(sweep_start) - 4 / aspect_ratio
-                     * (x_over_c_end - x_over_c_start)
-                     * (1 - taper_ratio) / (1 + taper_ratio))
-    return atan(tan_sweep_end)
-
 
 cases = [('fixed_cl',
           {'alpha': avl.Parameter(name='alpha',
@@ -171,7 +151,8 @@ class PAV(GeomBase):
         if velocity / self.cruise_speed_of_sound > 0.6:
             message = 'The cruise velocity is set too high. The cruise ' \
                       'velocity will be set to' \
-                      '{} km/h.'.format(0.6 * self.cruise_speed_of_sound)
+                      '{} km/h.'.format(int(3.6 * 0.6
+                                            * self.cruise_speed_of_sound))
             generate_warning('Warning: value changed', message)
             return 0.6 * self.cruise_speed_of_sound
         else:
@@ -198,6 +179,15 @@ class PAV(GeomBase):
         # Use a reference density of 1.225 kg/m^3 at sea level
         return (1.225 * (self.cruise_temperature / 288.15)
                 ** (-1 - g / (R * -0.0065)))
+
+    @Attribute
+    def kinematic_viscosity_air(self):
+        temperature_rankine = self.cruise_temperature * 9. / 5.
+        absolute_viscosity = (3.62 * 10 ** -7
+                              * (temperature_rankine / 518.7) ** 1.5
+                              * (518.7 + 198.72)
+                              / (temperature_rankine + 198.72))
+        return absolute_viscosity * 47.88 / self.cruise_density
 
     # Flight velocity related to cruise conditions
 
@@ -561,8 +551,6 @@ class PAV(GeomBase):
                         width=self.cabin_width,
                         cabin_height=self.cabin_height,
                         cabin_length=self.cabin_length,
-                        nose_radius_height=0.05,
-                        tail_radius_height=0.05,
                         nose_height=-0.2,
                         tail_height=0.3,
                         color=self.primary_colour)
@@ -852,29 +840,26 @@ class PAV(GeomBase):
 
     @Attribute
     def lift_coefficient_alpha_horizontal_tail(self):
+        # Compute the local Mach number
+        mach_number = (self.cruise_velocity_horizontal_tail
+                       / self.cruise_speed_of_sound)
+        # Compute the half chord sweep
+        sweep = sweep_to_sweep(0.25,
+                               radians(self.horizontal_tail_sweep),
+                               0.5,
+                               self.horizontal_tail.aspect_ratio,
+                               self.horizontal_tail.taper_ratio)
+        # Return the derivative of the lift coefficient
         return (2. * pi * self.horizontal_tail.aspect_ratio /
-                (2.
-                 + sqrt(4.
-                        + (self.horizontal_tail.aspect_ratio
-                           * sqrt(1 -
-                                  (self.cruise_velocity_horizontal_tail
-                                   / self.cruise_speed_of_sound) ** 2)
-                           / 0.95) ** 2
-                        * (1. +
-                           (tan(
-                               sweep_to_sweep(0.25,
-                                              radians(
-                                                  self.horizontal_tail_sweep),
-                                              0.5,
-                                              self.horizontal_tail.aspect_ratio,
-                                              self.horizontal_tail.taper_ratio)
-                           )) ** 2
-                           / sqrt(1 -
-                                  (self.cruise_velocity_horizontal_tail
-                                   / self.cruise_speed_of_sound) ** 2)
+                (2. + sqrt(4. + (self.horizontal_tail.aspect_ratio
+                                 * sqrt(1 - mach_number ** 2) / 0.95) ** 2
+                           * (1. + (tan(sweep)) ** 2
+                              / sqrt(1 -
+                                     (self.cruise_velocity_horizontal_tail
+                                      / self.cruise_speed_of_sound) ** 2)
 
+                              )
                            )
-                        )
                  )
                 )
 
@@ -974,8 +959,110 @@ class PAV(GeomBase):
     # -------------------------------------------------------------------------
 
     @Attribute
+    def yaw_moment_propeller(self):
+        # Obtain the maximum moment arm for worst case OEI condition
+        maximum_arm = self.wing_span / 2
+        # Return the yaw moment caused by the most outboard propeller
+        return self.thrust_per_propeller * maximum_arm
+
+    @Attribute
+    def vertical_tail_arm(self):
+        return abs(self.vertical_tail_root_location
+                   - self.centre_of_gravity[0])
+
+    @Input
+    def rudder_chord_ratio(self):
+        return 0.3
+
+    @Input
+    def rudder_deflection(self):
+        return radians(60)
+
+    @Attribute
+    def rudder_lift_coefficient_ratio(self):
+        # Assuming a value of cl alpha / cl alpha theory of 0.9
+        return .75 + 0.1 * self.rudder_chord_ratio
+
+    @Attribute
+    def rudder_lift_coefficient(self):
+        # Assuming a thickness over chord ratio close to 10%
+        return 2 + 0.7 * self.rudder_chord_ratio
+
+    @Attribute
+    def vertical_tail_area_controllability(self):
+        # A propeller aircraft with fixed pitch propeller is assumed
+        yaw_moment_drag = 0.25 * self.yaw_moment_propeller
+        # K factor to correct for the sweep of the wing
+        k = ((1 - 0.08 * (cos(radians(self.wing_sweep))) ** 2)
+             * (cos(radians(self.wing_sweep))) ** (3 / 4))
+        # Obtain the required surface
+        return ((self.yaw_moment_propeller + yaw_moment_drag)
+                / (0.5 * self.cruise_density * self.velocity ** 2
+                    * self.rudder_deflection
+                   * self.rudder_lift_coefficient_ratio
+                    * self.rudder_lift_coefficient
+                   * k * self.vertical_tail_arm))
+
+    # Required for stability
+
+    @Attribute
+    def lift_coefficient_alpha_vertical_tail(self):
+        # Compute the local Mach number
+        mach_number = (self.cruise_velocity_horizontal_tail
+                       / self.cruise_speed_of_sound)
+        # Compute the half chord sweep
+        sweep = sweep_to_sweep(0.25,
+                               radians(self.vertical_tail_sweep),
+                               0.5,
+                               self.vertical_tail_aspect_ratio,
+                               self.vertical_tail_taper_ratio)
+        # Return the derivative of the lift coefficient
+        return (2. * pi * self.vertical_tail_aspect_ratio /
+                (2. + sqrt(4. + (self.vertical_tail_aspect_ratio
+                                 * sqrt(1 - mach_number ** 2) / 0.95) ** 2
+                           * (1. + (tan(sweep)) ** 2
+                              / sqrt(1 - (self.cruise_velocity_horizontal_tail
+                                          / self.cruise_speed_of_sound) ** 2)
+
+                              )
+                           )
+                 )
+                )
+
+    @Attribute
+    def vertical_tail_area_stability(self):
+        return ((self.minimum_side_slip_derivative
+                 - self.coefficient_n_beta_fuselage)
+                # Cy beta is - Cl alpha, hence - Cy beta = Cl alpha
+                / self.lift_coefficient_alpha_vertical_tail
+                * self.wing_span
+                / self.vertical_tail_arm) * self.wing_area
+
+    @Attribute
+    def coefficient_n_beta_fuselage(self):
+        factor_k_n = (0.01 *
+                      (0.27 * self.centre_of_gravity[0]
+                       / self.fuselage_length
+                       - 0.168 * log(self.fuselage_length / self.cabin_height)
+                       + 0.416)
+                      - 0.0005)
+        factor_k_R_l = (0.46
+                        * log10((self.velocity * self.fuselage_length
+                                 / self.kinematic_viscosity_air) / 10. ** 6)
+                        + 1.)
+        return (-360. / (2. * pi)
+                * factor_k_n * factor_k_R_l
+                * self.fuselage_length ** 2 * self.cabin_height
+                / (self.wing_area * self.wing_span))
+
+    @Attribute
+    def minimum_side_slip_derivative(self):
+        return 0.002
+
+    @Attribute
     def vertical_tail_area(self):
-        return max(2, 1.5 * self.horizontal_tail.root_chord)
+        return max(self.vertical_tail_area_controllability,
+                   self.vertical_tail_area_stability)
 
     # ADJUST THIS THING !!!!!!!!!!
 
@@ -1013,13 +1100,15 @@ class PAV(GeomBase):
 
     @Attribute
     def vertical_tail_taper_ratio(self):
-        return self.vertical_tail_tip_chord / self.vertical_tail_root_chord
+        return 0.8
+        # return self.vertical_tail_tip_chord / self.vertical_tail_root_chord
 
     @Attribute
     def vertical_tail_aspect_ratio(self):
-        return (self.vertical_tail_span /
-                (self.vertical_tail_root_chord *
-                 (1 + self.vertical_tail_taper_ratio) / 2))
+        return 2
+        # return (self.vertical_tail_span /
+        #         (self.vertical_tail_root_chord *
+        #          (1 + self.vertical_tail_taper_ratio) / 2))
 
     @Attribute
     def vertical_tail_root_location(self):
@@ -1442,12 +1531,16 @@ class PAV(GeomBase):
     def number_of_propellers(self):
         return ceil(self.total_drag_coefficient * self.velocity ** 2
                     * self.wing_area * pi ** 2
-                    / (8. * self.r_propeller ** 2 * c_t_cruise
-                       * (mach_number_tip * self.cruise_speed_of_sound) ** 2))
+                    / self.thrust_per_propeller)
 
     @Attribute
     def propeller_radii(self):
         return self.r_propeller
+
+    @Attribute
+    def thrust_per_propeller(self):
+        return (8. * self.r_propeller ** 2 * c_t_cruise
+                * (mach_number_tip * self.cruise_speed_of_sound) ** 2)
 
     @Attribute
     def propeller_locations(self):
@@ -1515,7 +1608,7 @@ class PAV(GeomBase):
                                          * tan(radians(self.wing_sweep))),
                          nacelle_included=
                          (False if child.index == 0
-                          and len(self.propeller_locations) % 2 == 1
+                                   and len(self.propeller_locations) % 2 == 1
                           else True),
                          aspect_ratio=7,
                          ratio_hub_to_blade_radius=0.15,
