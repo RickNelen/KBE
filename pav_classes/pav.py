@@ -219,7 +219,7 @@ class PAV(GeomBase):
         # Obtain the induced drag from the AVL analysis
         analysis = AvlAnalysis(aircraft=self,
                                case_settings=cases)
-        print(analysis.induced_drag[cases[0][0]])
+        # print(analysis.induced_drag[cases[0][0]])
         return analysis.induced_drag[cases[0][0]]
 
     @Attribute
@@ -293,7 +293,8 @@ class PAV(GeomBase):
                 'wheels': wheels + wheels,
                 'fuselage': fuselage,
                 'skids': skid,
-                'propeller': propeller}
+                'propeller': propeller,
+                'battery': 0}
         # return self.find_children(lambda o: isinstance(o, (LoftedSolid,
         #                                                    RevolvedSolid,
         #                                                    RotatedShape)))
@@ -305,9 +306,12 @@ class PAV(GeomBase):
         for component in self.pav_components:
             if type(self.pav_components[component]) is not list:
                 name = component
-                value = [self.pav_components[component].cog.x,
-                         self.pav_components[component].cog.y,
-                         self.pav_components[component].cog.z]
+                if name == 'battery':
+                    value = [0.25 * self.fuselage_length, 0, 0]
+                else:
+                    value = [self.pav_components[component].cog.x,
+                             self.pav_components[component].cog.y,
+                             self.pav_components[component].cog.z]
                 if component == 'main_wing' or 'horizontal_tail' \
                         or 'vertical_tail':
                     value[1] = 0
@@ -327,7 +331,6 @@ class PAV(GeomBase):
                 name = component
                 library = {name: values}
                 dictionary = {**dictionary, **library}
-
         return dictionary
 
     @Attribute
@@ -395,13 +398,14 @@ class PAV(GeomBase):
                               ** - 0.49)
         mass_landing_gear = 20
 
-        return {'main_wing': 25 * self.wing_area,
-                'horizontal_tail': 25 * self.horizontal_tail_area,
-                'vertical_tail': 25 * self.vertical_tail_area,
+        return {'main_wing': 40 * self.wing_area,
+                'horizontal_tail': 40 * self.horizontal_tail_area,
+                'vertical_tail': 40 * self.vertical_tail_area,
                 'wheels': mass_landing_gear,
                 'fuselage': 50 * self.fuselage_length,
-                'skids': 50,
-                'propeller': 40}
+                'skids': 25,
+                'propeller': 15,
+                'battery': self.battery_mass}
 
         # return [mass_wing, mass_fuselage,
         #         mass_horizontal_tail, mass_vertical_tail, mass_landing_gear]
@@ -457,7 +461,7 @@ class PAV(GeomBase):
 
     @Attribute
     def expected_maximum_take_off_weight(self):
-        return ((self.mass + self.battery_mass
+        return ((self.mass
                  + self.number_of_passengers * 70) * g)
 
     @Input
@@ -495,8 +499,7 @@ class PAV(GeomBase):
         # If the PAV is not a one-seater, the number of seats abreast is 2
         # if there are 8 or less passengers; if there are more than 8
         # passengers, use 3 seats per row
-        return (1 if self.number_of_passengers == 1 else 2 if
-        self.number_of_passengers <= 8 else 3)
+        return 1 if self.number_of_passengers < 4 else 2
 
     @Attribute
     def number_of_rows(self):
@@ -575,7 +578,7 @@ class PAV(GeomBase):
         area = (self.maximum_take_off_weight
                 / (0.5 * self.cruise_density * self.velocity ** 2
                    * self.design_cl))
-        print(area)
+        # print(area)
         return area
 
     @Attribute
@@ -615,7 +618,7 @@ class PAV(GeomBase):
     @Input
     def longitudinal_wing_position(self):
         # This input is used to iterate for wing positioning
-        return 0.5
+        return 0.4
 
     @Attribute
     def wing_location(self):
@@ -924,7 +927,7 @@ class PAV(GeomBase):
         # requirement is returned
         area = max(self.horizontal_tail_area_controllability,
                    self.horizontal_tail_area_stability)
-        print('HT:', area)
+        # print('HT:', area)
         return area
 
     # The horizontal tail parts, using the attributes above; the part
@@ -1078,7 +1081,7 @@ class PAV(GeomBase):
         # total required area by the number of tails (which is 2)
         area = max(self.vertical_tail_area_controllability,
                    self.vertical_tail_area_stability) / 2
-        print('VT:', area)
+        # print('VT:', area)
         return area
 
     # ADJUST THIS THING !!!!!!!!!!
