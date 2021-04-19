@@ -1840,6 +1840,35 @@ class PAV(GeomBase):
                                     rotors_behind_vt)
             relative_aft_position = (centre_of_rotors_aft -
                                      self.centre_of_gravity[0])
+            relative_front_position = (- relative_aft_position)
+            center_of_rotors_front = (relative_front_position
+                                + self.vtol_propeller_radius * 2
+                                * self.prop_separation_factor * index
+                                for index in range(rotors_in_front))
+        else:
+            positions_front = (self.front_connection_location.x
+                              - self.front_connection_chord * 1 / 4
+                              + margin_for_tail_and_connection / 2
+                               - self.vtol_propeller_radius
+                               * self.prop_separation_factor
+                               - self.vtol_propeller_radius * 2
+                               * self.prop_separation_factor * index
+                               for index in range(rotors_in_front))
+            center_of_rotors_front = (self.front_connection_location.x
+                              - self.front_connection_chord * 1 / 4
+                              + margin_for_tail_and_connection / 2
+                               - self.vtol_propeller_radius
+                               * self.prop_separation_factor
+                                * rotors_in_front)
+            relative_front_position = (center_of_rotors_front
+                                       - self.centre_of_gravity[0])
+            relative_aft_position = (- relative_front_position)
+            center_of_rotors_aft = (relative_aft_position
+                                - self.vtol_propeller_radius * 2
+                                * self.prop_separation_factor * index
+                                for index in range(rotors_behind_vt))
+
+
 
         # front_propellers = [self.longitudinal_position_of_skids
         #                     + (1 + 2 * prop) * self.prop_separation_factor
