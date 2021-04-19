@@ -20,6 +20,14 @@ from pav_classes.pav import PAV
 class Iterator(Base):
     allowable_mass_difference = Input(500)
     n_passengers = Input(4)
+    range_in_km = Input(200)
+    max_span = Input(18)
+    quality_choice = Input(2)
+    wheels_choice = Input(True)
+    cruise_speed = Input(300)
+    primary_colour = Input('white')
+    secondary_colour = Input('blue')
+    propeller_radius = Input(0.5)
 
     # @Attribute
     # def new_maximum_take_off_weight(self):
@@ -36,7 +44,17 @@ class Iterator(Base):
         position_end = 0.6
         position_step = 0.025
 
-        initial = PAV(name='initial')
+        initial = PAV(label='initial',
+                      number_of_passengers=self.n_passengers,
+                      range=self.range_in_km,
+                      maximum_span=self.max_span,
+                      quality_level=self.quality_choice,
+                      wheels_included=self.wheels_choice,
+                      cruise_velocity=self.cruise_speed,
+                      primary_colour=self.primary_colour,
+                      secondary_colour=self.secondary_colour,
+                      r_propeller=self.propeller_radius,
+                      name='PAV')
         original_mass = initial.maximum_take_off_weight
         resulting_mass = initial.expected_maximum_take_off_weight
         original_cg = initial.centre_of_gravity
@@ -45,8 +63,9 @@ class Iterator(Base):
 
         outer_loop = 0
 
-        while (abs(original_mass - resulting_mass) >
-               self.allowable_mass_difference) and outer_loop < 3:
+        # while (abs(original_mass - resulting_mass) >
+        #        self.allowable_mass_difference) and \
+        while outer_loop < 3:
 
             outer_loop += 1
             inner_loop = 0
@@ -62,16 +81,23 @@ class Iterator(Base):
             cg_list = []
 
             while position <= position_end:
-
                 inner_loop += 1
                 # print('Inner loop:', inner_loop)
 
-                intermediate = PAV(name='initial',
+                intermediate = PAV(label='initial',
+                                   number_of_passengers=self.n_passengers,
+                                   range=self.range_in_km,
+                                   maximum_span=self.max_span,
+                                   quality_level=self.quality_choice,
+                                   wheels_included=self.wheels_choice,
+                                   cruise_velocity=self.cruise_speed,
+                                   primary_colour=self.primary_colour,
+                                   secondary_colour=self.secondary_colour,
+                                   r_propeller=self.propeller_radius,
                                    maximum_take_off_weight=original_mass,
                                    centre_of_gravity=original_cg,
                                    longitudinal_wing_position=position,
-                                   number_of_passengers=self.n_passengers,
-                                   r_propeller=0.4)
+                                   name='PAV')
 
                 h_t_area = intermediate.horizontal_tail_area
                 v_t_area = intermediate.vertical_tail_area
@@ -102,13 +128,20 @@ class Iterator(Base):
 
     @Part
     def new_aircraft(self):
-        return PAV(name='new',
+        return PAV(label='new',
+                   number_of_passengers=self.n_passengers,
+                   range=self.range_in_km,
+                   maximum_span=self.max_span,
+                   quality_level=self.quality_choice,
+                   wheels_included=self.wheels_choice,
+                   cruise_velocity=self.cruise_speed,
+                   primary_colour=self.primary_colour,
+                   secondary_colour=self.secondary_colour,
+                   r_propeller=self.propeller_radius,
                    maximum_take_off_weight=self.converge[1],
                    longitudinal_wing_position=self.converge[0],
                    centre_of_gravity=self.converge[2],
-                   primary_colour='green',
-                   number_of_passengers=self.n_passengers,
-                   r_propeller=0.4)
+                   name='PAV')
 
 
 if __name__ == '__main__':

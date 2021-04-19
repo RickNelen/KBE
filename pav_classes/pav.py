@@ -134,7 +134,6 @@ class PAV(GeomBase):
     c_d_flatplate = Input(1.28)
     r_propeller = Input(0.3)
 
-
     @Input
     def design_cl(self):
         return design_lift_coefficient
@@ -561,7 +560,7 @@ class PAV(GeomBase):
                         width=self.cabin_width,
                         cabin_height=self.cabin_height,
                         cabin_length=self.cabin_length,
-                        door_height=self.cabin_height-0.15,
+                        door_height=self.cabin_height - 0.15,
                         nose_height=-0.2,
                         tail_height=0.3,
                         color=self.primary_colour)
@@ -1764,40 +1763,118 @@ class PAV(GeomBase):
 
     @Attribute
     def vtol_propeller_locations(self):
-        front_propellers = [self.longitudinal_position_of_skids
-                            + (1 + 2 * prop) * self.prop_separation_factor
-                            * self.vtol_propeller_radius
-                            for prop in range(self.length_of_skids[2])]
-        centre_propellers = [self.front_connection_location.x
-                             + self.front_connection_chord * 3 / 4
-                             + (0.5 + prop) * self.length_of_skids[1]
-                             / self.length_of_skids[3]
-                             for prop in range(self.length_of_skids[3])]
-        rear_propellers = [self.vertical_tail_root_location
-                           + self.vertical_tail_root_chord * 3 / 4
-                           * self.prop_separation_factor
-                           + (1 + 2 * prop) * self.prop_separation_factor
-                           * self.vtol_propeller_radius
-                           for prop in range(self.length_of_skids[4])]
-        longitudinal_position_per_side = (front_propellers + centre_propellers
-                                          + rear_propellers)
-        longitudinal_position = (longitudinal_position_per_side
-                                 + longitudinal_position_per_side)
-        lateral_position_right = ([self.lateral_position_of_skids]
-                                  * int(self.number_of_vtol_propellers / 2.))
-        lateral_position_left = ([- self.lateral_position_of_skids]
-                                 * int(self.number_of_vtol_propellers / 2.))
-        lateral_position = lateral_position_left + lateral_position_right
-        vertical_position = ([self.vertical_position_of_skids]
-                             * self.number_of_vtol_propellers)
-        return [translate(self.position,
-                          self.position.Vx,
-                          longitudinal_position[index],
-                          self.position.Vy,
-                          lateral_position[index],
-                          self.position.Vz,
-                          vertical_position[index])
-                for index in range(self.number_of_vtol_propellers)]
+
+        # Determine how many rotors fit in between the front connection and
+        # vertical tail
+
+        vertical_tail_start = (self.vertical_tail_root_location.x
+                               - self.vertical_tail_root_chord / 4)
+
+        front_connection_end = (self.front_connection_location.x
+                                + self.front_connection_location * 3 / 4)
+
+        distance_in_between = vertical_tail_start - front_connection_end
+
+        margin_for_tail_and_connection = 0.2
+
+        # Compute how many rotors would fit in between the front connection
+        # and the vertical tail
+        rotors_in_between = floor(distance_in_between
+                                  / (self.vtol_propeller_radius * 2
+                                     * self.prop_separation_factor
+                                     + margin_for_tail_and_connection))
+
+        # Compute how many rotors would be placed either in front of the
+        # front connection or behind the vertical tail
+        rotors_outside = self.number_of_vtol_propellers / 2 - rotors_in_between
+
+        # Make sure that the number of rotors in front of the front
+        # connection is the same as the number of rotors behind the vertical
+        # tail
+        rotors_outside_result = (rotors_outside + 1 if rotors_outside % 2 != 0
+                                 else rotors_outside)
+
+        # Recompute the number of rotors that shall be placed in between the
+        # front connection and the vertical tail
+        rotors_in_between_result = int((self.number_of_vtol_propellers / 2
+                                        - rotors_outside_result))
+
+        # Compute number of rotors in front of the front connection
+        rotors_in_front = int(rotors_outside_result / 2)
+
+        # Compute number of rotors behind the vertical tail
+        rotors_behind_vt = int(rotors_outside_result / 2)
+
+        positions_in_between = [front_connection_end
+                                + margin_for_tail_and_connection / 2
+                                + self.vtol_propeller_radius
+                                * self.prop_separation_factor
+                                + self.vtol_propeller_radius * 2
+                                * self.prop_separation_factor * index
+                                for index in range(rotors_in_between_result)]
+
+        centre_of_rotors_in_between = ((vertical_tail_start -
+                                        front_connection_end) / 2 +
+                                       front_connection_end)
+
+        # Relative position of the centre of the rotors to the c.g.;
+        # positive if the rotors are placed behind the c.g. and negative if
+        # they are placed ahead of it
+        relative_position_to_cg = (centre_of_rotors_in_between -
+                                   self.centre_of_gravity[0])
+
+        if relative_position_to_cg > 0:
+            positions_aft = (self.vertical_tail_root_location.x
+                             + self.vertical_tail_root_chord * 3 / 4
+                             + margin_for_tail_and_connection / 2
+                             + self.vtol_propeller_radius
+                             * self.prop_separation_factor
+                             + self.vtol_propeller_radius * 2
+                             * self.prop_separation_factor * index
+                             for index in range(rotors_behind_vt))
+            centre_of_rotors_aft = (self.vertical_tail_root_location.x
+                                    + self.vertical_tail_root_chord * 3 / 4
+                                    + margin_for_tail_and_connection / 2
+                                    + self.vtol_propeller_radius * 2
+                                    * self.prop_separation_factor *
+                                    rotors_behind_vt)
+            relative_aft_position = (centre_of_rotors_aft -
+                                     self.centre_of_gravity[0])
+
+        # front_propellers = [self.longitudinal_position_of_skids
+        #                     + (1 + 2 * prop) * self.prop_separation_factor
+        #                     * self.vtol_propeller_radius
+        #                     for prop in range(self.length_of_skids[2])]
+        # centre_propellers = [self.front_connection_location.x
+        #                      + self.front_connection_chord * 3 / 4
+        #                      + (0.5 + prop) * self.length_of_skids[1]
+        #                      / self.length_of_skids[3]
+        #                      for prop in range(self.length_of_skids[3])]
+        # rear_propellers = [self.vertical_tail_root_location
+        #                    + self.vertical_tail_root_chord * 3 / 4
+        #                    * self.prop_separation_factor
+        #                    + (1 + 2 * prop) * self.prop_separation_factor
+        #                    * self.vtol_propeller_radius
+        #                    for prop in range(self.length_of_skids[4])]
+        # longitudinal_position_per_side = (front_propellers + centre_propellers
+        #                                   + rear_propellers)
+        # longitudinal_position = (longitudinal_position_per_side
+        #                          + longitudinal_position_per_side)
+        # lateral_position_right = ([self.lateral_position_of_skids]
+        #                           * int(self.number_of_vtol_propellers / 2.))
+        # lateral_position_left = ([- self.lateral_position_of_skids]
+        #                          * int(self.number_of_vtol_propellers / 2.))
+        # lateral_position = lateral_position_left + lateral_position_right
+        # vertical_position = ([self.vertical_position_of_skids]
+        #                      * self.number_of_vtol_propellers)
+        # return [translate(self.position,
+        #                   self.position.Vx,
+        #                   longitudinal_position[index],
+        #                   self.position.Vy,
+        #                   lateral_position[index],
+        #                   self.position.Vz,
+        #                   vertical_position[index])
+        #         for index in range(self.number_of_vtol_propellers)]
 
     @Part
     def vtol_propellers(self):
@@ -1827,8 +1904,8 @@ class PAV(GeomBase):
     def avl_surfaces(self):
         return [self.main_wing.avl_surface,
                 self.horizontal_tail.avl_surface]
-                # self.vertical_tail[0].avl_surface,
-                # self.vertical_tail[1].avl_surface]
+        # self.vertical_tail[0].avl_surface,
+        # self.vertical_tail[1].avl_surface]
 
     @Part
     def avl_configuration(self):
