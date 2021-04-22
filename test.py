@@ -61,7 +61,7 @@ if __name__ == '__main__':
     prop = Propeller(color='red')
     pav = PAV(label='PAV',
               number_of_passengers=passengers,
-              range=range_in_km,
+              required_range=range_in_km + 1000,
               maximum_span=max_span,
               quality_level=quality_choice,
               wheels_included=wheels_choice,
