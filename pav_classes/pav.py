@@ -1835,14 +1835,18 @@ class PAV(GeomBase):
             centre_of_rotors_aft = (self.vertical_tail_root_location.x
                                     + self.vertical_tail_root_chord * 3 / 4
                                     + margin_for_tail_and_connection / 2
-                                    + self.vtol_propeller_radius * 2
+                                    + (self.vtol_propeller_radius * 2
                                     * self.prop_separation_factor *
-                                    rotors_behind_vt)
+                                    rotors_behind_vt + self.vtol_propeller_radius * self.prop_separation_factor) / 2)
             relative_aft_position = (centre_of_rotors_aft -
                                      self.centre_of_gravity[0])
-            relative_front_position = (- relative_aft_position)
-            center_of_rotors_front = (relative_front_position
-                                + self.vtol_propeller_radius * 2
+            relative_front_position = ((relative_position_to_cg * rotors_in_between_result + relative_aft_position * rotors_behind_vt) / rotors_in_front)
+            center_of_rotors_front = (self.centre_of_gravity[0] - relative_front_position)
+            back_of_rotors_front = (center_of_rotors_front
+                                + (self.vtol_propeller_radius * 2
+                                    * self.prop_separation_factor *
+                                    rotors_in_front + self.vtol_propeller_radius * self.prop_separation_factor) / 2)
+            positions_front = (back_of_rotors_front - self.vtol_propeller_radius * 2
                                 * self.prop_separation_factor * index
                                 for index in range(rotors_in_front))
         else:
@@ -1862,11 +1866,15 @@ class PAV(GeomBase):
                                 * rotors_in_front)
             relative_front_position = (center_of_rotors_front
                                        - self.centre_of_gravity[0])
-            relative_aft_position = (- relative_front_position)
-            center_of_rotors_aft = (relative_aft_position
-                                - self.vtol_propeller_radius * 2
-                                * self.prop_separation_factor * index
-                                for index in range(rotors_behind_vt))
+            relative_back_position = ((relative_position_to_cg * rotors_in_between_result + relative_front_position * rotors_in_front) / rotors_behind_vt)
+            center_of_rotors_back = (self.centre_of_gravity[0] + relative_back_position)
+            front_of_rotors_back = (center_of_rotors_back
+                                    - (self.vtol_propeller_radius * 2
+                                       * self.prop_separation_factor *
+                                       rotors_behind_vt + self.vtol_propeller_radius * self.prop_separation_factor) / 2)
+            positions_aft = (front_of_rotors_back + self.vtol_propeller_radius * 2
+                               * self.prop_separation_factor * index
+                               for index in range(rotors_behind_vt))
 
 
 
