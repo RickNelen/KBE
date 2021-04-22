@@ -60,6 +60,30 @@ class Connections(GeomBase):
         return degrees(atan(self.pav.front_connection_vertical_length /
                             self.pav.front_connection_horizontal_length))
 
+    # distance_in_between = vertical_tail_start - front_connection_end
+    #
+    # # Compute how many rotors would fit in between the front connection
+    # # and the vertical tail
+    # rotors_in_between = floor(distance_in_between
+    #                           # - margin_for_tail_and_connection)
+    #                           / (self.vtol_propeller_radius * 2
+    #                              * self.prop_separation_factor))
+    #
+    # # Compute how many rotors would be placed either in front of the
+    # # front connection or behind the vertical tail
+    # rotors_outside = self.number_of_vtol_propellers / 2 - rotors_in_between
+    #
+    # # Make sure that the number of rotors in front of the front
+    # # connection is the same as the number of rotors behind the vertical
+    # # tail
+    # rotors_outside_result = (rotors_outside + 1 if rotors_outside % 2 != 0
+    #                          else rotors_outside)
+    #
+    # # Recompute the number of rotors that shall be placed in between the
+    # # front connection and the vertical tail
+    # rotors_in_between_result = int((self.number_of_vtol_propellers / 2
+    #                                 - rotors_outside_result))
+
 #
 # class Wheels(LoftedSolid):
 #
