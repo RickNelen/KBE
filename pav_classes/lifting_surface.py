@@ -1,7 +1,6 @@
 from math import radians, tan
 from parapy.geom import *
 from parapy.core import *
-from kbeutils.geom import *
 import kbeutils.avl as avl
 from .airfoil import Airfoil
 

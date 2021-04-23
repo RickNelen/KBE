@@ -41,22 +41,19 @@ and above the wing related attributes.
 
 import os.path
 
-from math import *
-from parapy.geom import *
+import kbeutils.avl as avl
 from parapy.core import *
+from parapy.geom import *
 from parapy.core.validate import *
 from parapy.exchange import STEPWriter
-import kbeutils.avl as avl
-import warnings
 
+from .avl_configurator import AvlAnalysis
+from .functions import *
 from .fuselage import Fuselage
 from .lifting_surface import LiftingSurface
-from .airfoil import Airfoil
 from .propeller import Propeller
 from .skids import Skid
 from .wheels import Wheels, Rods
-from .avl_configurator import AvlAnalysis
-from .functions import *
 
 _module_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                            os.pardir))
@@ -75,7 +72,7 @@ lbs_to_kg = 0.45359237
 ft_to_m = 0.3048
 inch_to_m = 0.0254
 
-c_t = 0.0050  # between 0.0050 and 0.0060
+c_t = 0.0060  # between 0.0050 and 0.0060
 c_t_cruise = 0.10  # between 0.02 and 0.16
 sigma_rotor = 0.070  # fixed
 mach_number_tip = 0.6  # fixed, higher Mach numbers for the rotor tips lead
@@ -83,12 +80,12 @@ mach_number_tip = 0.6  # fixed, higher Mach numbers for the rotor tips lead
 dl_max = 1500  # fixed
 r_over_chord_rotor: int = 15  # between 15 and 20
 figure_of_merit = 0.8  # between 0.6 and 0.8
-twist_rotor = -10  # degrees, tip angle is 10 degrees lower than at root,
+twist_rotor = 10  # degrees, tip angle is 10 degrees lower than at root,
 # which is good for hover
 k_factor_rotor_drag = 1.15  # between 1.1 and 1.2
 
 design_lift_coefficient = 0.5
-roc_vertical = 10  # between 5 and 15 m/s is most common
+roc_vertical = 5  # between 5 and 15 m/s is most common
 c_d_flatplate = 1.28
 n_blades = 4  # between 2 and 5
 margin_for_tail_and_connection = 0.2
@@ -163,6 +160,8 @@ class PAV(GeomBase):
                                                      'violet', 'lime',
                                                      'gray']))
 
+    hide_warnings = Input(False)
+
     @Input
     def design_cl(self):
         return design_lift_coefficient
@@ -183,7 +182,8 @@ class PAV(GeomBase):
                       'velocity will be set to' \
                       '{} km/h.'.format(int(3.6 * 0.6
                                             * self.cruise_speed_of_sound))
-            generate_warning('Warning: value changed', message)
+            if self.hide_warnings is False:
+                generate_warning('Warning: value changed', message)
             return 0.6 * self.cruise_speed_of_sound
         else:
             return velocity
@@ -196,13 +196,15 @@ class PAV(GeomBase):
                       'have made a typo; the range will be divided by ' \
                       '10 such that it becomes {:,.1f} km'.format(
                 intended_range / 10)
-            generate_warning('Warning: value changed', message)
+            if self.hide_warnings is False:
+                generate_warning('Warning: value changed', message)
             return intended_range / 10
         elif intended_range >= 1000:
             message = 'This range is too high for our PAV. ' \
                       'The range will be set to 300 ' \
                       'km'
-            generate_warning('Warning: value changed', message)
+            if self.hide_warnings is False:
+                generate_warning('Warning: value changed', message)
             return 300
         else:
             return intended_range
@@ -225,7 +227,8 @@ class PAV(GeomBase):
                       'Therefore, the span is changed to keep an aspect ' \
                       'ratio of 5. This gives a span of {:,.2f} m'.format(
                 resulting_span)
-            generate_warning('Warning: value changed', message)
+            if self.hide_warnings is False:
+                generate_warning('Warning: value changed', message)
             return resulting_span
         else:
             return intermediate_span
@@ -364,6 +367,7 @@ class PAV(GeomBase):
                 'fuselage': fuselage,
                 'skids': skid,
                 'propeller': propeller,
+                'payload': 0,
                 'battery': 0}
         # return self.find_children(lambda o: isinstance(o, (LoftedSolid,
         #                                                    RevolvedSolid,
@@ -378,6 +382,9 @@ class PAV(GeomBase):
                 name = component
                 if name == 'battery':
                     value = [0.25 * self.fuselage_length, 0, 0]
+                elif name == 'payload':
+                    value = [0.5 * self.fuselage_length,
+                             -0.2 * self.cabin_height, 0]
                 else:
                     value = [self.pav_components[component].cog.x,
                              self.pav_components[component].cog.y,
@@ -472,10 +479,15 @@ class PAV(GeomBase):
                 'horizontal_tail': 40 * self.horizontal_tail_area,
                 'vertical_tail': 40 * self.vertical_tail_area,
                 'wheels': mass_landing_gear,
-                'fuselage': 2700 * 0.005 * (2 * self.cabin_height + 2 * self.cabin_width) * self.fuselage_length,
+                'fuselage': (2700 * 0.005 * (2 * self.cabin_height
+                                             + 2 * self.cabin_width)
+                             * self.fuselage_length),
                 'skids': 50 * self.length_of_skids * self.skid_width,
-                'propeller': 5 + n_blades * self.vtol_propeller_radius ** 3 * r_over_chord_rotor ** 2 * 0.12 * 8050,
-                'battery': self.battery_mass}
+                'propeller': (5 + n_blades * self.vtol_propeller_radius ** 3
+                              * r_over_chord_rotor ** 2 * 0.12 * 8.050),
+                'battery': self.battery_mass,
+                'payload': ((70 + 15 * self.quality_level)
+                            * self.number_of_passengers)}
 
         # return [mass_wing, mass_fuselage,
         #         mass_horizontal_tail, mass_vertical_tail, mass_landing_gear]
@@ -531,8 +543,7 @@ class PAV(GeomBase):
 
     @Attribute
     def expected_maximum_take_off_weight(self):
-        return ((self.mass
-                 + self.number_of_passengers * 70) * g)
+        return self.mass * g
 
     @Input
     def maximum_take_off_weight(self):
@@ -634,6 +645,7 @@ class PAV(GeomBase):
                         door_height=self.cabin_height - 0.15,
                         nose_height=-0.2,
                         tail_height=0.3,
+                        pass_down=['hide_warnings'],
                         color=self.primary_colour)
 
     # -------------------------------------------------------------------------
@@ -1618,7 +1630,8 @@ class PAV(GeomBase):
             message = 'The propeller radius is too small, yielding too many ' \
                       'propellers to fit on the wing. Please reduce the ' \
                       'propeller radius.'
-            generate_warning('Warning: value needs to be changed', message)
+            if self.hide_warnings is False:
+                generate_warning('Warning: value needs to be changed', message)
             return allowed
         else:
             return required
@@ -1820,17 +1833,6 @@ class PAV(GeomBase):
     @Attribute
     def vtol_propeller_locations(self):
 
-        # Determine the lateral position of the rotors
-        lateral_position_right = ([self.lateral_position_of_skids]
-                                  * int(self.number_of_vtol_propellers / 2.))
-        lateral_position_left = ([- self.lateral_position_of_skids]
-                                 * int(self.number_of_vtol_propellers / 2.))
-        lateral_position = lateral_position_left + lateral_position_right
-
-        # Determine the vertical position of the rotors
-        vertical_position = ([self.vertical_position_of_skids]
-                             * self.number_of_vtol_propellers)
-
         # Determine how many rotors fit in between the front connection and
         # vertical tail
 
@@ -1863,6 +1865,20 @@ class PAV(GeomBase):
         # front connection and the vertical tail
         rotors_in_between_result = int((self.number_of_vtol_propellers / 2
                                         - rotors_outside_result))
+
+        # Determine the lateral position of the rotors
+        lateral_position_right = ([self.lateral_position_of_skids]
+                                  * int(rotors_outside_result
+                                        + rotors_in_between_result))
+        lateral_position_left = ([- self.lateral_position_of_skids]
+                                 * int(rotors_outside_result
+                                       + rotors_in_between_result))
+        lateral_position = lateral_position_left + lateral_position_right
+
+        # Determine the vertical position of the rotors
+        vertical_position = ([self.vertical_position_of_skids]
+                             * int((rotors_outside_result
+                                    + rotors_in_between_result) * 2))
 
         # Compute number of rotors in front of the front connection
         rotors_in_front = int(rotors_outside_result / 2)
@@ -1940,10 +1956,9 @@ class PAV(GeomBase):
                     for index in range(rotors_in_front)]
 
                 # Combine all longitudinal positions
-                x_positions = (positions_front + positions_in_between +
-                               positions_aft) + (
-                                      positions_front + positions_in_between +
-                                      positions_aft)
+                x_positions = (positions_front + positions_in_between
+                               + positions_aft + positions_front
+                               + positions_in_between + positions_aft)
 
             # If some of the front rotors are placed 'inside' the front
             # connection, they need to be moved forward
@@ -1982,10 +1997,10 @@ class PAV(GeomBase):
                     front_of_rotors_back + self.vtol_propeller_radius * 2
                     * self.prop_separation_factor * (index + 0.5)
                     for index in range(rotors_behind_vt)]
-                x_positions = (positions_front + positions_in_between +
-                               positions_aft) + (
-                                      positions_front + positions_in_between +
-                                      positions_aft)
+                x_positions = (positions_front + positions_in_between
+                               + positions_aft + positions_front
+                               + positions_in_between + positions_aft)
+
             return [translate(self.position, self.position.Vx,
                               x_positions[index], self.position.Vy,
                               lateral_position[index],
@@ -2030,10 +2045,9 @@ class PAV(GeomBase):
                     front_of_rotors_back + self.vtol_propeller_radius * 2
                     * self.prop_separation_factor * (index + 0.5)
                     for index in range(rotors_behind_vt)]
-                x_positions = (positions_front + positions_in_between +
-                               positions_aft) + (
-                                      positions_front + positions_in_between +
-                                      positions_aft)
+                x_positions = (positions_front + positions_in_between
+                               + positions_aft + positions_front
+                               + positions_in_between + positions_aft)
 
             else:
                 front_of_rotors_back = (self.vertical_tail_root_location
@@ -2072,10 +2086,9 @@ class PAV(GeomBase):
                                            rotors_in_front - 0.5 -
                                            index)
                                    for index in range(rotors_in_front)]
-                x_positions = (positions_front + positions_in_between +
-                               positions_aft) + (
-                                      positions_front + positions_in_between +
-                                      positions_aft)
+                x_positions = (positions_front + positions_in_between
+                               + positions_aft + positions_front
+                               + positions_in_between + positions_aft)
             return [translate(self.position, self.position.Vx,
                               x_positions[index], self.position.Vy,
                               lateral_position[index],
@@ -2091,13 +2104,13 @@ class PAV(GeomBase):
                          blade_radius=self.vtol_propeller_radius,
                          hub_length=1.5 * self.skid_height,
                          nacelle_included=False,
-                         aspect_ratio=6,
+                         aspect_ratio=r_over_chord_rotor,
                          ratio_hub_to_blade_radius=
                          min(0.2, 0.9 * (self.skid_width / 2)
                              / self.vtol_propeller_radius),
                          leading_edge_sweep=0,
                          blade_setting_angle=30,
-                         blade_outwash=25,
+                         blade_outwash=twist_rotor,
                          number_of_blade_sections=10,
                          blade_thickness=50,
                          position=self.vtol_propeller_locations[child.index],

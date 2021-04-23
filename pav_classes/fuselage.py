@@ -73,7 +73,8 @@ class Fuselage(GeomBase):
                       'to fit the doors; no action is required if this is ' \
                       'okay with the user. Otherwise, please reduce the door' \
                       ' height.'.format(self.door_height + 0.1)
-            generate_warning('Warning: value changed', message)
+            if self.hide_warnings is False:
+                generate_warning('Warning: value changed', message)
             return self.door_height + 0.1
         else:
             return self.cabin_height

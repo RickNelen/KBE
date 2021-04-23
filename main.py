@@ -2,19 +2,7 @@ import os.path
 from fpdf import FPDF
 from datetime import date
 from math import *
-import kbeutils.avl as avl
-
-from reportlab.lib.colors import blue
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import *
-from reportlab.pdfgen.canvas import Canvas
-
-from pav_classes.fuselage import Fuselage
-from pav_classes.lifting_surface import LiftingSurface
-from pav_classes.airfoil import Airfoil
-from pav_classes.propeller import Propeller
-from pav_classes.pav import PAV
-from pav_classes.avl_configurator import AvlAnalysis
+from iterator import Iterator
 
 _module_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -27,6 +15,7 @@ FILENAME = os.path.join(OUTPUT_DIR, 'Invoice.pdf')
 # -----------------------------------------------------------------------------
 # Read the input file and obtain the preferred parameters
 # -----------------------------------------------------------------------------
+
 with open(INPUT_FILE, encoding="Latin-1") as f:
     contents = f.read()
 
@@ -46,8 +35,7 @@ with open(INPUT_FILE, encoding="Latin-1") as f:
     options = ['yes', 'Yes', 'no', 'No']
     # Return the choice True or False for wheels
     wheels_choice = (True if contents[17] == options[0]
-                     or contents[17] == options[1] else False)
-
+                             or contents[17] == options[1] else False)
 
 # -----------------------------------------------------------------------------
 # Run the KBE app
@@ -56,40 +44,26 @@ with open(INPUT_FILE, encoding="Latin-1") as f:
 if __name__ == '__main__':
     from parapy.gui import display
 
-    obj = Fuselage(color='blue')
-    wing = LiftingSurface(name='right_wing')
-    prop = Propeller(color='red')
-    pav = PAV(label='PAV',
-              number_of_passengers=passengers,
-              required_range=range_in_km,
-              maximum_span=max_span,
-              quality_level=quality_choice,
-              wheels_included=wheels_choice,
-              cruise_velocity=cruise_speed,
-              primary_colour=primary_colour_in,
-              secondary_colour=secondary_colour_in,
-              name='PAV')
+    pav = Iterator(label='PAV',
+                   n_passengers=passengers,
+                   range_in_km=range_in_km,
+                   max_span=max_span,
+                   quality_choice=quality_choice,
+                   wheels_choice=wheels_choice,
+                   cruise_speed=cruise_speed,
+                   primary_colour=primary_colour_in,
+                   secondary_colour=secondary_colour_in)
 
-    cases = [('fixed_aoa', {'alpha': 3}),
-             ('fixed_cl', {'alpha': avl.Parameter(name='alpha',
-                                                  value='0.3',
-                                                  setting='CL')})]
+    display(pav)
 
-    analysis = AvlAnalysis(aircraft=pav,
-                           case_settings=cases)
-
-    display(analysis)
-    print(pav.pav_components)
-    # print(analysis.lift_over_drag)
-    #
-    # pav.step_parts.write()
+    pav.step_parts.write()
 
 # -----------------------------------------------------------------------------
 # Get all the parameters to generate a pdf output
 # -----------------------------------------------------------------------------
 
 n_passengers = str(pav.number_of_passengers)
-baggage = format(pav.number_of_passengers * pav.quality_level * 22, '.0f')
+baggage = format(pav.number_of_passengers * pav.quality_level * 15, '.0f')
 range = format(pav.range, '.0f')
 velocity = format(pav.cruise_velocity, '.0f')
 quality = 'Economy' if pav.quality_level == 1 else 'Business'
@@ -127,7 +101,7 @@ total_cost = '${:,.2f}'.format(total_price)
 cost_names = ['Basic price: \n', 'Additional cost for cabin design: \n',
               'Cost for primary colour: \n', 'Cost for secondary colour: \n']
 cost_names.insert(2, 'Additional cost for wheels: \n') if pav.wheels_included \
-                                                         is True else None
+                                                          is True else None
 
 cost_values = [base_cost + '\n', quality_cost + '\n', prim_col_cost + '\n',
                sec_col_cost + '\n']

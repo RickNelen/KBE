@@ -1,23 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2016 ParaPy Holding B.V.
-#
-# This file is subject to the terms and conditions defined in
-# the license agreement that you have received with this source code
-#
-# THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
-# KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
-# PURPOSE.
-
-from parapy.geom import *
 from parapy.core import *
 
 from pav_classes.pav import PAV
 
 
 class Iterator(Base):
+    iterate = Input(False)
     allowable_mass_difference = Input(500)
     n_passengers = Input(4)
     range_in_km = Input(200)
@@ -27,34 +14,28 @@ class Iterator(Base):
     cruise_speed = Input(300)
     primary_colour = Input('white')
     secondary_colour = Input('blue')
-    propeller_radius = Input(0.5)
 
-    # @Attribute
-    # def new_maximum_take_off_weight(self):
-    #     pav = PAV(name='initial')
-    #     while abs(pav.expected_maximum_take_off_weight -
-    #               pav.maximum_take_off_weight) > self.allowable_mass_difference:
-    #         mass = pav.expected_maximum_take_off_weight
-    #         pav = PAV(name='intermediate',
-    #                   maximum_take_off_weight=mass)
-    #     return pav.expected_maximum_take_off_weight
+    @Part
+    def initial_aircraft(self):
+        return PAV(label='Quick_PAV',
+                   number_of_passengers=self.n_passengers,
+                   required_range=self.range_in_km,
+                   maximum_span=self.max_span,
+                   quality_level=self.quality_choice,
+                   wheels_included=self.wheels_choice,
+                   cruise_velocity=self.cruise_speed,
+                   primary_colour=self.primary_colour,
+                   secondary_colour=self.secondary_colour,
+                   # suppress=self.iterate,
+                   name='PAV_initial')
+
     @Attribute
     def converge(self):
         position_start = 0.15
         position_end = 0.6
         position_step = 0.025
 
-        initial = PAV(label='initial',
-                      number_of_passengers=self.n_passengers,
-                      range=self.range_in_km,
-                      maximum_span=self.max_span,
-                      quality_level=self.quality_choice,
-                      wheels_included=self.wheels_choice,
-                      cruise_velocity=self.cruise_speed,
-                      primary_colour=self.primary_colour,
-                      secondary_colour=self.secondary_colour,
-                      r_propeller=self.propeller_radius,
-                      name='PAV')
+        initial = self.initial_aircraft
         original_mass = initial.maximum_take_off_weight
         resulting_mass = initial.expected_maximum_take_off_weight
         original_cg = initial.centre_of_gravity
@@ -86,26 +67,23 @@ class Iterator(Base):
 
                 intermediate = PAV(label='initial',
                                    number_of_passengers=self.n_passengers,
-                                   range=self.range_in_km,
+                                   required_range=self.range_in_km,
                                    maximum_span=self.max_span,
                                    quality_level=self.quality_choice,
                                    wheels_included=self.wheels_choice,
                                    cruise_velocity=self.cruise_speed,
                                    primary_colour=self.primary_colour,
                                    secondary_colour=self.secondary_colour,
-                                   r_propeller=self.propeller_radius,
                                    maximum_take_off_weight=original_mass,
                                    centre_of_gravity=original_cg,
                                    longitudinal_wing_position=position,
+                                   hide_warnings=True,
                                    name='PAV')
 
                 h_t_area = intermediate.horizontal_tail_area
                 v_t_area = intermediate.vertical_tail_area
                 mass = intermediate.expected_maximum_take_off_weight
                 cg = intermediate.centre_of_gravity_result
-
-                # print('HT area:', h_t_area)
-                # print('Mass:', mass)
 
                 position_list.append(position)
                 area_list.append(h_t_area + v_t_area)
@@ -128,20 +106,20 @@ class Iterator(Base):
 
     @Part
     def new_aircraft(self):
-        return PAV(label='new',
+        return PAV(label='Iterated_PAV',
                    number_of_passengers=self.n_passengers,
-                   range=self.range_in_km,
+                   required_range=self.range_in_km,
                    maximum_span=self.max_span,
                    quality_level=self.quality_choice,
                    wheels_included=self.wheels_choice,
                    cruise_velocity=self.cruise_speed,
                    primary_colour=self.primary_colour,
                    secondary_colour=self.secondary_colour,
-                   r_propeller=self.propeller_radius,
-                   maximum_take_off_weight=self.converge[1],
-                   longitudinal_wing_position=self.converge[0],
-                   centre_of_gravity=self.converge[2],
-                   name='PAV')
+                   maximum_take_off_weight=(self.converge[1]),
+                   longitudinal_wing_position=(self.converge[0]),
+                   centre_of_gravity=(self.converge[2]),
+                   suppress=not self.iterate,
+                   name='PAV_final')
 
 
 if __name__ == '__main__':
@@ -149,75 +127,3 @@ if __name__ == '__main__':
 
     obj = Iterator(label='PAV')
     display(obj)
-
-    # @Attribute
-    # def wing_positioning(self):
-    #     turns = 0
-    #     start = 0.1
-    #     step = 0.03
-    #     pav = PAV(name='initial',
-    #               longitudinal_wing_position=start,
-    #               centre_of_gravity=[2, 0, 0.1],
-    #               number_of_passengers=self.n_passengers,
-    #               r_propeller=0.4)
-    #     indicate = 0
-    #     pos = start + (indicate - 1) * step
-    #     while (abs(pav.expected_maximum_take_off_weight -
-    #                pav.maximum_take_off_weight) >
-    #            self.allowable_mass_difference) and turns < 4:
-    #         turns += 1
-    #         print('Turns', turns)
-    #         parts = 0
-    #         mass = pav.expected_maximum_take_off_weight
-    #         print('mass:', mass)
-    #         cog = pav.centre_of_gravity_result
-    #         print('cg:', cog)
-    #         print('wing_position:', pos)
-    #         pav = PAV(name='intermediate',
-    #                   maximum_take_off_weight=mass,
-    #                   longitudinal_wing_position=pos,
-    #                   centre_of_gravity=cog,
-    #                   number_of_passengers=self.n_passengers,
-    #                   r_propeller=0.4)
-    #         # pav = PAV(name='initial',
-    #         #           longitudinal_wing_position=start,
-    #         #           centre_of_gravity=[2, 0, 0.1],
-    #         #           number_of_passengers=self.n_passengers,
-    #         #           r_propeller=0.4)
-    #         old_tail_surface = (pav.horizontal_tail_area +
-    #                             pav.vertical_tail_area)
-    #         cog = pav.centre_of_gravity_result
-    #         next_pav = PAV(name='next',
-    #                        maximum_take_off_weight=mass,
-    #                        longitudinal_wing_position=pos,
-    #                        centre_of_gravity=cog,
-    #                        number_of_passengers=self.n_passengers,
-    #                        r_propeller=0.4)
-    #         next_tail_surface = (next_pav.horizontal_tail_area
-    #                              + pav.vertical_tail_area)
-    #         ratio = start + step
-    #         areas = []
-    #         while ratio < 0.7:
-    #             cog = pav.centre_of_gravity_result
-    #             ratio += step
-    #             parts += 1
-    #             print('Part', parts)
-    #             next_pav = PAV(name='next',
-    #                            maximum_take_off_weight=mass,
-    #                            longitudinal_wing_position=ratio,
-    #                            centre_of_gravity=cog,
-    #                            number_of_passengers=self.n_passengers,
-    #                            r_propeller=0.4)
-    #             next_tail_surface = (next_pav.horizontal_tail_area
-    #                                  + pav.vertical_tail_area)
-    #             areas.append(next_pav.horizontal_tail_area)
-    #         indicate = areas.index(max(areas))
-    #     pos = start + (indicate - 1) * step
-    #     return [pos, mass, cog]
-    #
-    # # @Part(in_tree=False)
-    # # def initial_aircraft(self):
-    # #     return PAV(name='initial',
-    # #                longitudinal_wing_position=0.1,
-    # #                number_of_passengers=self.n_passengers,
-    # #                r_propeller=0.4)
