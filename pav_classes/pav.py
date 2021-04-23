@@ -472,9 +472,9 @@ class PAV(GeomBase):
                 'horizontal_tail': 40 * self.horizontal_tail_area,
                 'vertical_tail': 40 * self.vertical_tail_area,
                 'wheels': mass_landing_gear,
-                'fuselage': 50 * self.fuselage_length,
-                'skids': 25,
-                'propeller': 15,
+                'fuselage': 2700 * 0.005 * (2 * self.cabin_height + 2 * self.cabin_width) * self.fuselage_length,
+                'skids': 50 * self.length_of_skids * self.skid_width,
+                'propeller': 5 + n_blades * self.vtol_propeller_radius ** 3 * r_over_chord_rotor ** 2 * 0.12 * 8050,
                 'battery': self.battery_mass}
 
         # return [mass_wing, mass_fuselage,
