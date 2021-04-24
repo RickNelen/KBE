@@ -72,12 +72,12 @@ lbs_to_kg = 0.45359237
 ft_to_m = 0.3048
 inch_to_m = 0.0254
 
-c_t = 0.0060  # between 0.0050 and 0.0060
+c_t = 0.0050  # between 0.0050 and 0.0060
 c_t_cruise = 0.10  # between 0.02 and 0.16
 sigma_rotor = 0.070  # fixed
 mach_number_tip = 0.6  # fixed, higher Mach numbers for the rotor tips lead
 # to stall
-dl_max = 1500  # fixed
+dl_max = 3000  # between 1000 and 7000 N/m^2
 r_over_chord_rotor: int = 15  # between 15 and 20
 figure_of_merit = 0.8  # between 0.6 and 0.8
 twist_rotor = 10  # degrees, tip angle is 10 degrees lower than at root,
@@ -85,9 +85,11 @@ twist_rotor = 10  # degrees, tip angle is 10 degrees lower than at root,
 k_factor_rotor_drag = 1.15  # between 1.1 and 1.2
 
 design_lift_coefficient = 0.5
-roc_vertical = 5  # between 5 and 15 m/s is most common
+roc_vertical = 5  # between 2 and 10 m/s is most common for vtol winged aircraft,
+# between 10 and 15 m/s is most common for helicopters
 c_d_flatplate = 1.28
-n_blades = 4  # between 2 and 5
+n_blades_vtol = 4  # between 2 and 5
+n_blades_cruise = 4  # between 2 and 5
 margin_for_tail_and_connection = 0.2
 
 # -----------------------------------------------------------------------------
@@ -483,8 +485,8 @@ class PAV(GeomBase):
                                              + 2 * self.cabin_width)
                              * self.fuselage_length),
                 'skids': 50 * self.length_of_skids * self.skid_width,
-                'propeller': (5 + n_blades * self.vtol_propeller_radius ** 3
-                              * r_over_chord_rotor ** 2 * 0.12 * 8.050),
+                'propeller': (5 + n_blades_vtol * self.vtol_propeller_radius ** 3
+                              / (r_over_chord_rotor ** 2 * 0.12) * 8.050),
                 'battery': self.battery_mass,
                 'payload': ((70 + 15 * self.quality_level)
                             * self.number_of_passengers)}
@@ -1715,7 +1717,7 @@ class PAV(GeomBase):
     def cruise_propellers(self):
         return Propeller(name='cruise_propellers',
                          quantify=len(self.propeller_locations),
-                         number_of_blades=n_blades,
+                         number_of_blades=n_blades_cruise,
                          blade_radius=self.propeller_radii[0] if
                          child.index == 0 else self.propeller_radii[1],
                          nacelle_length=(1.05 * chord_length(
@@ -1747,7 +1749,7 @@ class PAV(GeomBase):
 
     @Attribute
     def r_rotor(self):
-        return max(0.25, min(0.7, (self.cabin_length - 1) / 8.))
+        return max(0.5, min(0.7, (self.cabin_length - 1) / 8.))
         # return min(0.3 + self.number_of_passengers / 20, 0.7)
 
     @Attribute
@@ -1755,8 +1757,8 @@ class PAV(GeomBase):
         n_rotors_computed = (- (self.power_roc + self.power_d_liftingsurface)
                              / roc_vertical
                              * (1 / ((self.power_hover + self.power_profile)
-                                     / roc_vertical - 1500. * pi *
-                                     self.r_rotor)
+                                     / roc_vertical - dl_max * pi *
+                                     self.r_rotor ** 2)
                                 )
                              )
         n_rotors_per_side = ceil(n_rotors_computed / 2)
@@ -1777,7 +1779,7 @@ class PAV(GeomBase):
 
     @Attribute
     def thrust_hover(self):
-        return (1. / 6. * n_blades * 6.6 * c_t / sigma_rotor
+        return (1. / 6. * n_blades_vtol * 6.6 * c_t / sigma_rotor
                 * self.cruise_density * self.r_rotor / r_over_chord_rotor
                 * (0.97 * mach_number_tip * self.cruise_speed_of_sound) ** 2
                 * 0.97 * self.r_rotor)
@@ -1795,13 +1797,13 @@ class PAV(GeomBase):
     @Attribute
     def power_profile(self):
         return (self.c_d_rotor * 1. / 8. * self.cruise_density
-                * self.r_rotor / r_over_chord_rotor * n_blades
+                * self.r_rotor / r_over_chord_rotor * n_blades_vtol
                 * (mach_number_tip * self.cruise_speed_of_sound) ** 3
                 * self.r_rotor)
 
     @Attribute
     def c_d_rotor(self):
-        return (8. / (n_blades * self.r_rotor ** 2 / r_over_chord_rotor
+        return (8. / (n_blades_vtol * self.r_rotor ** 2 / r_over_chord_rotor
                       / (pi * self.r_rotor ** 2)) * sqrt(c_t / 2.)
                 * (c_t / figure_of_merit - k_factor_rotor_drag * c_t))
 
@@ -1846,8 +1848,8 @@ class PAV(GeomBase):
 
         # Compute how many rotors would fit in between the front connection
         # and the vertical tail
-        rotors_in_between = floor(distance_in_between
-                                  # - margin_for_tail_and_connection)
+        rotors_in_between = floor((distance_in_between
+                                  - margin_for_tail_and_connection)
                                   / (self.vtol_propeller_radius * 2
                                      * self.prop_separation_factor))
 
@@ -1938,7 +1940,7 @@ class PAV(GeomBase):
             center_of_rotors_front = (
                     self.centre_of_gravity[0] - relative_front_position)
             back_of_rotors_front = (center_of_rotors_front
-                                    + rotors_in_front +
+                                    + rotors_in_front *
                                     self.vtol_propeller_radius
                                     * self.prop_separation_factor)
 
@@ -2100,7 +2102,7 @@ class PAV(GeomBase):
     def vtol_propellers(self):
         return Propeller(name='VTOL_propellers',
                          quantify=self.number_of_vtol_propellers,
-                         number_of_blades=n_blades,
+                         number_of_blades=n_blades_vtol,
                          blade_radius=self.vtol_propeller_radius,
                          hub_length=1.5 * self.skid_height,
                          nacelle_included=False,
