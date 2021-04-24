@@ -6,7 +6,7 @@ structured in the following way:
 
     - Imports and paths
     - Constants
-    - Functions
+    - Functions and collections
 
 - Inside the class:
 
@@ -77,7 +77,7 @@ c_t_cruise = 0.10  # between 0.02 and 0.16
 sigma_rotor = 0.070  # fixed
 mach_number_tip = 0.6  # fixed, higher Mach numbers for the rotor tips lead
 # to stall
-dl_max = 1500  # fixed
+dl_max = 5000  # fixed
 r_over_chord_rotor: int = 15  # between 15 and 20
 figure_of_merit = 0.8  # between 0.6 and 0.8
 twist_rotor = 10  # degrees, tip angle is 10 degrees lower than at root,
@@ -87,17 +87,50 @@ k_factor_rotor_drag = 1.15  # between 1.1 and 1.2
 design_lift_coefficient = 0.5
 roc_vertical = 5  # between 5 and 15 m/s is most common
 c_d_flatplate = 1.28
-n_blades = 4  # between 2 and 5
+n_blades_cruise = 4
+n_blades_vtol = 2
 margin_for_tail_and_connection = 0.2
 
 # -----------------------------------------------------------------------------
-# FUNCTIONS
+# FUNCTIONS AND COLLECTIONS
 # -----------------------------------------------------------------------------
 
 cases = [('fixed_cl',
           {'alpha': avl.Parameter(name='alpha',
                                   value=str(design_lift_coefficient),
                                   setting='CL')})]
+
+colours = ['white', 'whitesmoke', 'snow', 'seashell', 'linen', 'oldlace',
+           'floralwhite', 'cornsilk', 'ivory', 'beige', 'lightyellow',
+           'lightgoldenrodyellow', 'honeydew', 'mintcream', 'azure',
+           'lightcyan', 'aliceblue', 'ghostwhite', 'lavender',
+           'lavenderblush', 'gainsboro', 'lightgray', 'mistyrose',
+           'peachpuff', 'bisque', 'antiquewhite', 'navajowhite',
+           'blanchedalmond', 'papayawhip', 'moccasin', 'wheat',
+           'lemonchiffon', 'palegoldenrod', 'palegreen', 'aquamarine',
+           'paleturquoise', 'powderblue', 'lightblue', 'pink', 'lightpink',
+           'silver', 'lightcoral', 'salmon', 'tomato', 'darksalmon',
+           'coral', 'lightsalmon', 'sandybrown', 'burlywood', 'tan',
+           'khaki', 'greenyellow', 'lightgreen', 'skyblue', 'lightskyblue',
+           'lightsteelblue', 'thistle', 'plum', 'violet', 'hotpink',
+           'darkgray', 'rosybrown', 'orangered', 'darkorange', 'orange',
+           'gold', 'darkkhaki', 'yellow', 'yellowgreen', 'chartreuse',
+           'lawngreen', 'darkseagreen', 'mediumaquamarine', 'turquoise',
+           'mediumturquoise', 'cornflowerblue', 'mediumslateblue',
+           'mediumpurple', 'orchid', 'palevioletred', 'gray', 'indianred',
+           'chocolate', 'peru', 'goldenrod', 'limegreen', 'lime',
+           'mediumseagreen', 'springgreen', 'mediumspringgreen', 'aqua',
+           'cyan', 'cadetblue', 'dodgerblue', 'lightslategray', 'slategray',
+           'royalblue', 'slateblue', 'mediumorchid', 'deeppink', 'dimgray',
+           'red', 'brown', 'firebrick', 'sienna', 'saddlebrown',
+           'darkgoldenrod', 'olivedrab', 'seagreen', 'lightseagreen',
+           'darkturquoise', 'deepskyblue', 'steelblue', 'blue',
+           'blueviolet', 'darkorchid', 'fuchsia', 'magenta',
+           'mediumvioletred', 'crimson', 'black', 'maroon', 'darkred',
+           'olive', 'darkolivegreen', 'darkgreen', 'green', 'forestgreen',
+           'darkslategray', 'teal', 'darkcyan', 'midnightblue', 'navy',
+           'darkblue', 'mediumblue', 'darkslateblue', 'indigo',
+           'darkviolet', 'purple', 'darkmagenta']
 
 
 def thrust_per_propeller(density, speed_of_sound, radius):
@@ -133,32 +166,8 @@ class PAV(GeomBase):
     # The cruise velocity can be given in [km/hr]
     cruise_velocity = Input(400)
     # The colours that are used for the visualisation
-    primary_colour = Input('white', validator=OneOf(['white', 'red', 'darkred',
-                                                     'green', 'blue', 'black',
-                                                     'silver', 'whitesmoke',
-                                                     'gold', 'yellow',
-                                                     'orange',
-                                                     'darkorange', 'purple',
-                                                     'magenta', 'salmon',
-                                                     'pink', 'cyan',
-                                                     'lightgreen', 'darkgreen',
-                                                     'lightblue', 'darkblue',
-                                                     'lightyellow', 'beige',
-                                                     'violet', 'lime',
-                                                     'gray']))
-    secondary_colour = Input('red', validator=OneOf(['white', 'red', 'darkred',
-                                                     'green', 'blue', 'black',
-                                                     'silver', 'whitesmoke',
-                                                     'gold', 'yellow',
-                                                     'orange',
-                                                     'darkorange', 'purple',
-                                                     'magenta', 'salmon',
-                                                     'pink', 'cyan',
-                                                     'lightgreen', 'darkgreen',
-                                                     'lightblue', 'darkblue',
-                                                     'lightyellow', 'beige',
-                                                     'violet', 'lime',
-                                                     'gray']))
+    primary_colours = Input('white')
+    secondary_colours = Input('red')
 
     hide_warnings = Input(False)
 
@@ -173,6 +182,24 @@ class PAV(GeomBase):
     # -------------------------------------------------------------------------
     # INPUT CHECKS
     # -------------------------------------------------------------------------
+
+    @Attribute
+    def primary_colour(self):
+        if self.primary_colours not in colours:
+            message = 'This colour is not available. Please choose a colour ' \
+                      'from the palet as provided.'
+            generate_warning('Warning: invalid colour', message)
+        return (self.primary_colours if self.primary_colours in colours
+                else 'white')
+
+    @Attribute
+    def secondary_colour(self):
+        if self.secondary_colours not in colours:
+            message = 'This colour is not available. Please choose a colour ' \
+                      'from the palet as provided.'
+            generate_warning('Warning: invalid colour', message)
+        return (self.secondary_colours if self.secondary_colours in colours
+                else 'red')
 
     @Attribute
     def velocity(self):
@@ -347,8 +374,11 @@ class PAV(GeomBase):
         fuselage = self.fuselage.fuselage_cabin
         propeller = [self.cruise_propellers[index].hub_cone
                      for index in range(len(self.propeller_locations))]
+        vtol = [self.vtol_propellers[index].hub_cone
+                for index in range(len(self.vtol_propeller_locations))]
         skid = [self.skids[index].skid
                 for index in range(len(self.skid_locations))]
+        right_front_connection = self.right_front_connection
         left_wheels = [self.left_wheels[index].wheel
                        for index in range(len(self.wheel_locations))]
         right_wheels = [self.right_wheels[index]
@@ -366,14 +396,12 @@ class PAV(GeomBase):
                 'wheels': wheels + wheels,
                 'fuselage': fuselage,
                 'skids': skid,
+                'front_connection': right_front_connection,
                 'propeller': propeller,
+                'vtol': vtol,
                 'payload': 0,
                 'battery': 0}
-        # return self.find_children(lambda o: isinstance(o, (LoftedSolid,
-        #                                                    RevolvedSolid,
-        #                                                    RotatedShape)))
 
-    # BE CAREFUL! THE MASS OF PAYLOAD STILL HAS TO BE ADDED!
     @Attribute
     def center_of_gravity_of_components(self):
         dictionary = {}
@@ -390,7 +418,7 @@ class PAV(GeomBase):
                              self.pav_components[component].cog.y,
                              self.pav_components[component].cog.z]
                 if component == 'main_wing' or 'horizontal_tail' \
-                        or 'vertical_tail':
+                        or 'vertical_tail' or 'front_connection':
                     value[1] = 0
                 library = {name: value}
                 dictionary = {**dictionary, **library}
@@ -412,79 +440,84 @@ class PAV(GeomBase):
 
     @Attribute
     def mass_of_components(self):
-        horizontal_tail_t_over_c = float(
-            self.horizontal_tail.airfoils[0]) / 100
-        vertical_tail_t_over_c = float(
-            self.vertical_tail[0].airfoils[0]) / 100
-
-        # These tail volume coefficients assume general aviation - twin
-        # engine aircraft; CHECK ONCE MORE IF THIS IS WORKING WELL! (see
-        # slide 7)
-        horizontal_tail_volume_coefficient = 0.8
-        vertical_tail_volume_coefficient = 0.07
-
-        # Replace these things by measured items and proper values later!
-        ultimate_load_factor = 3.
-        root_t_over_c = 0.12
-
-        control_surface_area = 0.1 * self.wing_area
-        k_door = 1.06
-        k_lg = 1.0
-        k_ws = 0.95
-        l_over_d = 20
-        # --------
-        mass_wing = (0.0051 * (self.maximum_take_off_weight / lbs_to_kg
-                               * ultimate_load_factor) ** 0.557
-                     * (self.wing_area / (ft_to_m ** 2)) ** 0.649
-                     * sqrt(self.wing_aspect_ratio) * root_t_over_c ** -0.4
-                     * (1 + self.main_wing.taper_ratio) ** 0.1
-                     * (cos(radians(self.wing_sweep))) ** -1
-                     * control_surface_area ** 0.1)
-        mass_fuselage = (0.3280 * k_door * k_lg *
-                         (self.maximum_take_off_weight / lbs_to_kg
-                          * ultimate_load_factor) ** 0.5
-                         * (self.fuselage_length / ft_to_m) ** 0.25
-
-                         # THIS LINE TRIES TO GET THE AREA OF THE FUSELAGE BUT
-                         # DOES NOT WORK YET
-                         * (self.pav_components['fuselage'].area
-                            / (ft_to_m ** 2))
-                         ** 0.302
-                         * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
-
-        mass_horizontal_tail = (0.016 *
-                                (self.maximum_take_off_weight / lbs_to_kg)
-                                ** 0.414
-                                * (0.5 * self.cruise_density
-                                   * self.velocity ** 2)
-                                ** 0.168
-                                * self.horizontal_tail_area ** 0.896
-                                * (100 * horizontal_tail_t_over_c /
-                                   cos(radians(
-                                       self.horizontal_tail_sweep))) ** -0.12)
-        mass_vertical_tail = (0.073 *
-                              (1 + 0.2 * horizontal_tail_volume_coefficient
-                               / vertical_tail_volume_coefficient)
-                              * (self.maximum_take_off_weight / lbs_to_kg
-                                 * ultimate_load_factor) ** 0.376
-                              * (0.5 * self.cruise_density * self.velocity
-                                 ** 2) ** 0.122
-                              * self.vertical_tail_area ** 0.873
-                              * (100 * vertical_tail_t_over_c /
-                                 cos(radians(self.vertical_tail_sweep)))
-                              ** - 0.49)
-        mass_landing_gear = 20
+        # horizontal_tail_t_over_c = float(
+        #     self.horizontal_tail.airfoils[0]) / 100
+        # vertical_tail_t_over_c = float(
+        #     self.vertical_tail[0].airfoils[0]) / 100
+        #
+        # # These tail volume coefficients assume general aviation - twin
+        # # engine aircraft; CHECK ONCE MORE IF THIS IS WORKING WELL! (see
+        # # slide 7)
+        # horizontal_tail_volume_coefficient = 0.8
+        # vertical_tail_volume_coefficient = 0.07
+        #
+        # # Replace these things by measured items and proper values later!
+        # ultimate_load_factor = 3.
+        # root_t_over_c = 0.12
+        #
+        # control_surface_area = 0.1 * self.wing_area
+        # k_door = 1.06
+        # k_lg = 1.0
+        # k_ws = 0.95
+        # l_over_d = 20
+        # # --------
+        # mass_wing = (0.0051 * (self.maximum_take_off_weight / lbs_to_kg
+        #                        * ultimate_load_factor) ** 0.557
+        #              * (self.wing_area / (ft_to_m ** 2)) ** 0.649
+        #              * sqrt(self.wing_aspect_ratio) * root_t_over_c ** -0.4
+        #              * (1 + self.main_wing.taper_ratio) ** 0.1
+        #              * (cos(radians(self.wing_sweep))) ** -1
+        #              * control_surface_area ** 0.1)
+        # mass_fuselage = (0.3280 * k_door * k_lg *
+        #                  (self.maximum_take_off_weight / lbs_to_kg
+        #                   * ultimate_load_factor) ** 0.5
+        #                  * (self.fuselage_length / ft_to_m) ** 0.25
+        #
+        #                  # THIS LINE TRIES TO GET THE AREA OF THE FUSELAGE BUT
+        #                  # DOES NOT WORK YET
+        #                  * (self.pav_components['fuselage'].area
+        #                     / (ft_to_m ** 2))
+        #                  ** 0.302
+        #                  * (1 + k_ws) ** 0.04 * l_over_d ** 0.1)
+        #
+        # mass_horizontal_tail = (0.016 *
+        #                         (self.maximum_take_off_weight / lbs_to_kg)
+        #                         ** 0.414
+        #                         * (0.5 * self.cruise_density
+        #                            * self.velocity ** 2)
+        #                         ** 0.168
+        #                         * self.horizontal_tail_area ** 0.896
+        #                         * (100 * horizontal_tail_t_over_c /
+        #                            cos(radians(
+        #                                self.horizontal_tail_sweep))) ** -0.12)
+        # mass_vertical_tail = (0.073 *
+        #                       (1 + 0.2 * horizontal_tail_volume_coefficient
+        #                        / vertical_tail_volume_coefficient)
+        #                       * (self.maximum_take_off_weight / lbs_to_kg
+        #                          * ultimate_load_factor) ** 0.376
+        #                       * (0.5 * self.cruise_density * self.velocity
+        #                          ** 2) ** 0.122
+        #                       * self.vertical_tail_area ** 0.873
+        #                       * (100 * vertical_tail_t_over_c /
+        #                          cos(radians(self.vertical_tail_sweep)))
+        #                       ** - 0.49)
+        # mass_landing_gear = 20
 
         return {'main_wing': 40 * self.wing_area,
                 'horizontal_tail': 40 * self.horizontal_tail_area,
                 'vertical_tail': 40 * self.vertical_tail_area,
-                'wheels': mass_landing_gear,
+                'wheels': 20,
                 'fuselage': (2700 * 0.005 * (2 * self.cabin_height
                                              + 2 * self.cabin_width)
                              * self.fuselage_length),
                 'skids': 50 * self.length_of_skids * self.skid_width,
-                'propeller': (5 + n_blades * self.vtol_propeller_radius ** 3
-                              * r_over_chord_rotor ** 2 * 0.12 * 8.050),
+                'front_connection': (40 * 2 * (self.front_connection_span
+                                               - self.cabin_width / 2)
+                                     * self.front_connection_chord),
+                'propeller': (5 + n_blades_cruise * self.propeller_radii[-1]
+                              ** 3 / (r_over_chord_rotor ** 2) * 0.12 * 2700),
+                'vtol': (5 + n_blades_vtol * self.vtol_propeller_radius
+                         ** 3 / (r_over_chord_rotor ** 2) * 0.12 * 2700),
                 'battery': self.battery_mass,
                 'payload': ((70 + 15 * self.quality_level)
                             * self.number_of_passengers)}
@@ -1026,15 +1059,23 @@ class PAV(GeomBase):
                               dihedral=3,
                               position=self.position.translate(
                                   self.position.Vx,
-                                  self.fuselage_length * 0.8,
+                                  self.vertical_tail_root_location
+                                  + tan(radians(self.vertical_tail_sweep))
+                                  * self.vertical_tail_span
+                                  - self.vertical_tail_root_chord / 4
+                                  * self.vertical_tail_taper_ratio,
                                   self.position.Vz,
-                                  0.3 * self.cabin_height),
+                                  self.vertical_position_of_skids
+                                  + self.vertical_tail_span
+                                  - 1.05 * tan(radians(3))
+                                  * self.lateral_position_of_skids),
                               color='silver')
 
     @Part
     def right_horizontal_tail(self):
         return SubtractedSolid(shape_in=self.horizontal_tail.surface,
-                               tool=self.fuselage.fuselage_shape,
+                               tool=[self.fuselage.fuselage_shape,
+                                     self.right_vertical_tail],
                                color='silver')
 
     @Part
@@ -1213,12 +1254,13 @@ class PAV(GeomBase):
     @Attribute
     def vertical_tail_root_location(self):
         # This provides the location relative to the nose
-        vertical = (self.horizontal_tail.position.z
-                    - self.vertical_position_of_skids)
-        longitudinal = (self.horizontal_tail.position.x
+        # vertical = (self.horizontal_tail.position.z
+        #             - self.vertical_position_of_skids)
+        longitudinal = (self.fuselage_length * 0.8
                         + self.lateral_position_of_skids
                         * tan(radians(self.horizontal_tail_sweep))
-                        - vertical * tan(radians(self.vertical_tail_sweep)))
+                        - self.cabin_height
+                        * tan(radians(self.vertical_tail_sweep)))
         return longitudinal
 
     # Parts: the vertical_tail is a reference part based on the above
@@ -1252,20 +1294,20 @@ class PAV(GeomBase):
                                   self.position.Vx),
                               color=self.primary_colour)
 
-    # @Part
-    # def right_vertical_tail(self):
-    #     return SubtractedSolid(shape_in=self.vertical_tail[1].surface,
-    #                            tool=[self.right_horizontal_tail,
-    #                                  self.landing_skids[1]],
-    #                            color='silver')
-    #
-    # @Part
-    # def left_vertical_tail(self):
-    #     return MirroredShape(shape_in=self.right_vertical_tail,
-    #                          reference_point=self.position,
-    #                          vector1=self.position.Vx,
-    #                          vector2=self.position.Vz,
-    #                          color='silver')
+    @Part
+    def right_vertical_tail(self):
+        return SubtractedSolid(shape_in=self.vertical_tail[1].surface,
+                               tool=[  # self.right_horizontal_tail,
+                                   self.landing_skids[1]],
+                               color='silver')
+
+    @Part
+    def left_vertical_tail(self):
+        return MirroredShape(shape_in=self.right_vertical_tail,
+                             reference_point=self.position,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='silver')
 
     # -------------------------------------------------------------------------
     # SKIDS
@@ -1375,8 +1417,6 @@ class PAV(GeomBase):
     # -------------------------------------------------------------------------
 
     @Attribute
-    # The front connection is located such that it is ahead of any doors;
-    # however, it is kept at least 20% behind the nose
     def front_connection_location(self):
         distance_to_tail = (self.vertical_tail_root_location -
                             self.vertical_tail_root_chord * 1 / 4
@@ -1399,8 +1439,10 @@ class PAV(GeomBase):
                          # max(self.length_of_fuselage_nose * 3 / 4
                          #     - self.front_connection_chord * 3 / 4,
                          #     0.2 * self.length_of_fuselage_nose),
-                         max(translation, self.length_of_fuselage_nose / 2
-                             + self.front_connection_chord / 4),
+                         # max(translation, self.length_of_fuselage_nose / 2
+                         #     + self.front_connection_chord / 4),
+                         (self.length_of_fuselage_nose * 3 / 4
+                          + self.front_connection_chord / 4),
                          self.position.Vz,
                          # (2 * self.fuselage.nose_height - 1)
                          2 / 3 * (self.cabin_height -
@@ -1583,14 +1625,16 @@ class PAV(GeomBase):
     def left_wheel_horizontal_rods(self):
         return Solid(quantify=len(self.wheel_locations),
                      built_from=self.left_wheel_reference_rods[
-                         child.index].rod_horizontal)
+                         child.index].rod_horizontal,
+                     suppress=not self.wheels_included)
 
     @Part(in_tree=False)
     def left_wheel_vertical_rods(self):
         return SubtractedSolid(quantify=len(self.wheel_locations),
                                shape_in=self.left_wheel_reference_rods[
                                    child.index].rod_vertical,
-                               tool=self.skids[0].skid)
+                               tool=self.skids[0].skid,
+                               suppress=not self.wheels_included)
 
     # Rod parts: left_wheel_rods provides the proper combined rods for the
     # left wheels, as visible in the GUI; right_wheel_rods is a set of
@@ -1602,7 +1646,8 @@ class PAV(GeomBase):
                         built_from=[
                             self.left_wheel_horizontal_rods[child.index],
                             self.left_wheel_vertical_rods[child.index]],
-                        color='silver')
+                        color='silver',
+                        suppress=not self.wheels_included)
 
     @Part
     def right_wheel_rods(self):
@@ -1715,10 +1760,10 @@ class PAV(GeomBase):
     def cruise_propellers(self):
         return Propeller(name='cruise_propellers',
                          quantify=len(self.propeller_locations),
-                         number_of_blades=n_blades,
+                         number_of_blades=n_blades_cruise,
                          blade_radius=self.propeller_radii[0] if
                          child.index == 0 else self.propeller_radii[1],
-                         nacelle_length=(1.05 * chord_length(
+                         nacelle_length=(0.95 * chord_length(
                              self.main_wing.root_chord,
                              self.main_wing.tip_chord,
                              abs(self.propeller_locations[
@@ -1730,7 +1775,7 @@ class PAV(GeomBase):
                                    and len(self.propeller_locations) % 2 == 1
                           else True),
                          aspect_ratio=7,
-                         ratio_hub_to_blade_radius=0.15,
+                         ratio_hub_to_blade_radius=0.2,
                          leading_edge_sweep=0,
                          blade_setting_angle=40,
                          blade_outwash=30,
@@ -1741,13 +1786,23 @@ class PAV(GeomBase):
                              - self.position.Vy),
                          color=self.secondary_colour)
 
+    @Part
+    def right_propeller_nacelles(self):
+        return SubtractedSolid(quantify=int(len(self.propeller_locations)
+                                            - 1),
+                               shape_in=self.cruise_propellers[1 +
+                                            child.index].nacelle,
+                               tool=(self.right_wing if child.index <= (len(
+                                   self.propeller_locations) - 1) / 2 - 1
+                                     else self.left_wing))
+
     # -------------------------------------------------------------------------
     # VTOL ROTORS
     # -------------------------------------------------------------------------
 
     @Attribute
     def r_rotor(self):
-        return max(0.25, min(0.7, (self.cabin_length - 1) / 8.))
+        return max(0.4, min(0.8, self.number_of_rows * 0.15))
         # return min(0.3 + self.number_of_passengers / 20, 0.7)
 
     @Attribute
@@ -1755,8 +1810,8 @@ class PAV(GeomBase):
         n_rotors_computed = (- (self.power_roc + self.power_d_liftingsurface)
                              / roc_vertical
                              * (1 / ((self.power_hover + self.power_profile)
-                                     / roc_vertical - 1500. * pi *
-                                     self.r_rotor)
+                                     / roc_vertical - dl_max * pi *
+                                     self.r_rotor ** 2)
                                 )
                              )
         n_rotors_per_side = ceil(n_rotors_computed / 2)
@@ -1777,7 +1832,7 @@ class PAV(GeomBase):
 
     @Attribute
     def thrust_hover(self):
-        return (1. / 6. * n_blades * 6.6 * c_t / sigma_rotor
+        return (1. / 6. * n_blades_vtol * 6.6 * c_t / sigma_rotor
                 * self.cruise_density * self.r_rotor / r_over_chord_rotor
                 * (0.97 * mach_number_tip * self.cruise_speed_of_sound) ** 2
                 * 0.97 * self.r_rotor)
@@ -1795,13 +1850,13 @@ class PAV(GeomBase):
     @Attribute
     def power_profile(self):
         return (self.c_d_rotor * 1. / 8. * self.cruise_density
-                * self.r_rotor / r_over_chord_rotor * n_blades
+                * self.r_rotor / r_over_chord_rotor * n_blades_vtol
                 * (mach_number_tip * self.cruise_speed_of_sound) ** 3
                 * self.r_rotor)
 
     @Attribute
     def c_d_rotor(self):
-        return (8. / (n_blades * self.r_rotor ** 2 / r_over_chord_rotor
+        return (8. / (n_blades_vtol * self.r_rotor ** 2 / r_over_chord_rotor
                       / (pi * self.r_rotor ** 2)) * sqrt(c_t / 2.)
                 * (c_t / figure_of_merit - k_factor_rotor_drag * c_t))
 
@@ -2100,7 +2155,7 @@ class PAV(GeomBase):
     def vtol_propellers(self):
         return Propeller(name='VTOL_propellers',
                          quantify=self.number_of_vtol_propellers,
-                         number_of_blades=n_blades,
+                         number_of_blades=n_blades_vtol,
                          blade_radius=self.vtol_propeller_radius,
                          hub_length=1.5 * self.skid_height,
                          nacelle_included=False,

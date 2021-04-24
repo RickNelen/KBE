@@ -24,8 +24,8 @@ class Iterator(Base):
                    quality_level=self.quality_choice,
                    wheels_included=self.wheels_choice,
                    cruise_velocity=self.cruise_speed,
-                   primary_colour=self.primary_colour,
-                   secondary_colour=self.secondary_colour,
+                   primary_colours=self.primary_colour,
+                   secondary_colours=self.secondary_colour,
                    # suppress=self.iterate,
                    name='PAV_initial')
 
@@ -72,8 +72,8 @@ class Iterator(Base):
                                    quality_level=self.quality_choice,
                                    wheels_included=self.wheels_choice,
                                    cruise_velocity=self.cruise_speed,
-                                   primary_colour=self.primary_colour,
-                                   secondary_colour=self.secondary_colour,
+                                   primary_colours=self.primary_colour,
+                                   secondary_colours=self.secondary_colour,
                                    maximum_take_off_weight=original_mass,
                                    centre_of_gravity=original_cg,
                                    longitudinal_wing_position=position,
@@ -84,6 +84,9 @@ class Iterator(Base):
                 v_t_area = intermediate.vertical_tail_area
                 mass = intermediate.expected_maximum_take_off_weight
                 cg = intermediate.centre_of_gravity_result
+                print('Loop:', inner_loop)
+                print('C.G.:', cg)
+                print('Mass:', mass)
 
                 position_list.append(position)
                 area_list.append(h_t_area + v_t_area)
@@ -113,17 +116,32 @@ class Iterator(Base):
                    quality_level=self.quality_choice,
                    wheels_included=self.wheels_choice,
                    cruise_velocity=self.cruise_speed,
-                   primary_colour=self.primary_colour,
-                   secondary_colour=self.secondary_colour,
+                   primary_colours=self.primary_colour,
+                   secondary_colours=self.secondary_colour,
                    maximum_take_off_weight=(self.converge[1]),
                    longitudinal_wing_position=(self.converge[0]),
                    centre_of_gravity=(self.converge[2]),
                    suppress=not self.iterate,
                    name='PAV_final')
 
+    @Attribute
+    def step_part(self):
+        return (self.new_aircraft.step_parts if self.iterate is True
+                else self.initial_aircraft.step_parts)
 
-if __name__ == '__main__':
-    from parapy.gui import display
+    @Attribute
+    def wing_span(self):
+        return (self.new_aircraft.wing_span if self.iterate is True
+                else self.initial_aircraft.wing_span)
 
-    obj = Iterator(label='PAV')
-    display(obj)
+    @Attribute
+    def fuselage_length(self):
+        return (self.new_aircraft.fuselage_length if self.iterate is True
+                else self.initial_aircraft.fuselage_length)
+
+
+# if __name__ == '__main__':
+#     from parapy.gui import display
+#
+#     obj = Iterator(label='PAV')
+#     display(obj)

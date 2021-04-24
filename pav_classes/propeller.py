@@ -129,7 +129,7 @@ class Propeller(GeomBase):
         return InterpolatedCurve(points=self.nacelle_locations,
                                  initial_tangent=self.nacelle_tangents)
 
-    @Part
+    @Part(in_tree=False)
     def nacelle(self):
         return RevolvedSolid(built_from=self.nacelle_profile,
                              center=self.position.point,
