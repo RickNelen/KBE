@@ -18,6 +18,9 @@ class Fuselage(GeomBase):
     # Name the instance of the fuselage
     name = Input()
 
+    # Prevent warnings from popping up until the design is converged
+    hide_warnings = Input(False)
+
     # Number of stations at which profiles are generated
     number_of_positions = Input(20)
 
@@ -49,6 +52,10 @@ class Fuselage(GeomBase):
     # Geometric inputs relative to the maximum width
     nose_radius_width = Input(default=nose_radius_height)
     tail_radius_width = Input(default=tail_radius_height)
+
+    # Colours
+    primary_colour = Input('white')
+    secondary_colour = Input('red')
 
     @Input
     def door_width(self):
@@ -271,12 +278,13 @@ class Fuselage(GeomBase):
     def fuselage_shape(self):
         return Compound(built_from=[self.fuselage_nose_cone,
                                     self.fuselage_cabin,
-                                    self.fuselage_tail_cone])
+                                    self.fuselage_tail_cone],
+                        color=self.primary_colour)
 
     # Door parts: the door_profile provides the shape of the door,
     # while doors provides the projected shape on the fuselage
 
-    @Part
+    @Part(in_tree=False)
     def door_profile(self):
         return Rectangle(quantify=self.number_of_rows,
                          width=self.door_width,
@@ -299,7 +307,7 @@ class Fuselage(GeomBase):
                               source=self.door_profile[child.index],
                               target=self.fuselage_shape,
                               direction=-self.position.Vy,
-                              color='black')
+                              color=self.secondary_colour)
 
     @Part
     def right_doors(self):
@@ -308,4 +316,4 @@ class Fuselage(GeomBase):
                              reference_point=self.position.point,
                              vector1=self.position.Vx,
                              vector2=self.position.Vz,
-                             color='black')
+                             color=self.secondary_colour)

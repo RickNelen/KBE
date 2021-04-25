@@ -55,7 +55,22 @@ if __name__ == '__main__':
                    primary_colour=primary_colour_in,
                    secondary_colour=secondary_colour_in)
 
+    # As the client is assumed to be a non-expert, they are not provided
+    # with the AVL analysis that is being run behind the scenes. They get
+    # the GUI as clean as possible
     display(pav)
+
+    # However, if required, one of the following lines can be uncommented to
+    # either show the AVL results for the initial aircraft or the iterated
+    # aircraft
+
+    # display(pav.initial_aircraft.analysis)
+
+    # display(pav.new_aircraft.analysis)
+
+# -----------------------------------------------------------------------------
+# Generate a .stp output
+# -----------------------------------------------------------------------------
 
     pav.step_part.write()
 
@@ -67,6 +82,7 @@ if __name__ == '__main__':
     baggage = format(pav.n_passengers * pav.quality_choice * 15, '.0f')
     range = format(pav.range_in_km, '.0f')
     velocity = format(pav.cruise_speed, '.0f')
+    battery_energy = format(pav.battery_energy, '.0f')
     quality = 'Economy' if pav.quality_choice == 1 else 'Business'
     wheels = 'Yes' if pav.wheels_choice is True else 'No'
     span = format(pav.wing_span, '.2f')
@@ -74,5 +90,5 @@ if __name__ == '__main__':
     prim_col = pav.primary_colour.capitalize()
     sec_col = pav.secondary_colour.capitalize()
 
-    pdf_creator(n_passengers, baggage, range, velocity, quality, wheels, span,
-                length, prim_col, sec_col, FILENAME)
+    pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
+                quality, wheels, span, length, prim_col, sec_col, FILENAME)

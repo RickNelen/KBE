@@ -2,7 +2,6 @@ from parapy.core import *
 
 from pav_classes.pav import PAV
 
-
 class Iterator(Base):
     iterate = Input(False)
     allowable_mass_difference = Input(500)
@@ -26,7 +25,6 @@ class Iterator(Base):
                    cruise_velocity=self.cruise_speed,
                    primary_colours=self.primary_colour,
                    secondary_colours=self.secondary_colour,
-                   # suppress=self.iterate,
                    name='PAV_initial')
 
     @Attribute
@@ -138,9 +136,9 @@ class Iterator(Base):
         return (self.new_aircraft.fuselage_length if self.iterate is True
                 else self.initial_aircraft.fuselage_length)
 
-
-# if __name__ == '__main__':
-#     from parapy.gui import display
-#
-#     obj = Iterator(label='PAV')
-#     display(obj)
+    @Attribute
+    def battery_energy(self):
+        capacity = (self.new_aircraft.battery_energy if self.iterate is True
+                else self.initial_aircraft.battery_energy)
+        # Convert the capacity from Joule to kWh
+        return capacity / 3.6e6
