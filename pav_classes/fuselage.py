@@ -75,7 +75,7 @@ class Fuselage(GeomBase):
                       ' height.'.format(self.door_height + 0.1)
             if self.hide_warnings is False:
                 generate_warning('Warning: value changed', message)
-            return self.door_height + 0.1
+            return self.door_height + 0.4
         else:
             return self.cabin_height
 
@@ -197,15 +197,15 @@ class Fuselage(GeomBase):
 
     # Doors
 
-    @Attribute
-    def right_doors(self):
-        return (self.doors[index] if index % 2 == 1 else None for
-                index in range(len(self.door_profile)))
-
-    @Attribute
-    def left_doors(self):
-        return (self.doors[index] if index % 2 == 0 else None for
-                index in range(len(self.door_profile)))
+    # @Attribute
+    # def right_doors(self):
+    #     return (self.doors[index] if index % 2 == 1 else None for
+    #             index in range(len(self.door_profile)))
+    #
+    # @Attribute
+    # def left_doors(self):
+    #     return (self.doors[index] if index % 2 == 0 else None for
+    #             index in range(len(self.door_profile)))
 
     # -------------------------------------------------------------------------
     # PARTS
@@ -284,19 +284,28 @@ class Fuselage(GeomBase):
                          position=translate(rotate90(self.position,
                                                      self.position.Vx),
                                             self.position.Vx,
-                                            self.nose_length +
-                                            child.index * self.seat_pitch,
-                                            # local y-axis is the global z-axis
-                                            self.position.Vy,
-                                            -self.door_height / 50,
-                                            # local z-axis is the global
-                                            # negative y-axis
-                                            self.position.Vz, 0))
+                                            self.nose_length
+                                            # - self.nose_length
+                                            # / (4 * self.number_of_rows)
+                                            + (child.index + 0.5)
+                                            * self.seat_pitch,
+                                            self.position.Vz,
+                                            - (self.height - self.door_height)
+                                            / 6))
 
     @Part
-    def doors(self):
+    def left_doors(self):
         return ProjectedCurve(quantify=len(self.door_profile),
                               source=self.door_profile[child.index],
                               target=self.fuselage_shape,
-                              direction=self.position.Vy,
-                              color='white')
+                              direction=-self.position.Vy,
+                              color='black')
+
+    @Part
+    def right_doors(self):
+        return MirroredShape(quantify=len(self.door_profile),
+                             shape_in=self.left_doors[child.index],
+                             reference_point=self.position.point,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             color='black')

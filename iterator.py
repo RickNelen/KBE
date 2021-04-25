@@ -31,8 +31,8 @@ class Iterator(Base):
 
     @Attribute
     def converge(self):
-        position_start = 0.15
-        position_end = 0.6
+        position_start = 0.2
+        position_end = 0.5
         position_step = 0.025
 
         initial = self.initial_aircraft
@@ -44,9 +44,8 @@ class Iterator(Base):
 
         outer_loop = 0
 
-        # while (abs(original_mass - resulting_mass) >
-        #        self.allowable_mass_difference) and \
-        while outer_loop < 3:
+        while (abs(original_mass - resulting_mass) >
+               self.allowable_mass_difference) and outer_loop < 3:
 
             outer_loop += 1
             inner_loop = 0
