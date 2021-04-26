@@ -1,9 +1,16 @@
+# -----------------------------------------------------------------------------
+# IMPORTS
+# -----------------------------------------------------------------------------
+
 from parapy.geom import *
 from parapy.core import *
 
-from math import *
 from .functions import *
 import numpy as np
+
+# -----------------------------------------------------------------------------
+# FUSELAGE CLASS
+# -----------------------------------------------------------------------------
 
 
 class Fuselage(GeomBase):
@@ -62,7 +69,7 @@ class Fuselage(GeomBase):
         # The door width is set to 0.8 for regular seat pitches; if the seat
         # pitch would be smaller, it is adjusted such that each row can fit
         # a door
-        return 0.8 if self.seat_pitch >= 1 else self.seat_pitch - 0.1
+        return 0.8 if self.seat_pitch >= 0.9 else self.seat_pitch - 0.1
 
     # -------------------------------------------------------------------------
     # ATTRIBUTES
@@ -73,16 +80,21 @@ class Fuselage(GeomBase):
     @Attribute
     def height(self):
         # Make sure that the cabin is higher than the doors, even if this is
-        # wrongly defined by the input
-        if self.cabin_height < self.door_height + 0.1:
+        # wrongly defined by the input; a margin of 0.4 m is used to make
+        # sure that the doors can still fit between the wings and front
+        # connections
+        if self.cabin_height < self.door_height + 0.4:
             message = 'The doors cannot be higher than the cabin. The ' \
                       'cabin height is increased to {:,.2f} metres in order ' \
                       'to fit the doors; no action is required if this is ' \
                       'okay with the user. Otherwise, please reduce the door' \
-                      ' height.'.format(self.door_height + 0.1)
+                      ' height.'.format(self.door_height + 0.4)
             if self.hide_warnings is False:
                 generate_warning('Warning: value changed', message)
             return self.door_height + 0.4
+
+        # If the cabin is sufficiently higher than the doors, the cabin
+        # height is returned directly
         else:
             return self.cabin_height
 
@@ -130,6 +142,11 @@ class Fuselage(GeomBase):
 
     @Attribute
     def height_nose(self):
+        # A smooth curve is provided for any length or height of the nose
+        # cone, based on the equation
+        # z = (z0 + 1 / dx * (1 - z0) * sqrt(dx^2 - (x - dx)^2)) * dz
+        # where dx is the nose length as a ratio of the fuselage length and
+        # dz is the height of the fuselage
         return [((self.nose_radius_height
                   + 1. / self.relative_nose_length
                   * (1 - self.nose_radius_height)
@@ -141,6 +158,11 @@ class Fuselage(GeomBase):
 
     @Attribute
     def width_nose(self):
+        # A smooth curve is provided for any length or width of the nose
+        # cone, based on the equation
+        # y = (y0 + 1 / dx * (1 - y0) * sqrt(dx^2 - (x - dx)^2)) * dy
+        # where dx is the nose length as a ratio of the fuselage length and
+        # dy is the width of the fuselage
         return [((self.nose_radius_width
                   + 1. / self.relative_nose_length
                   * (1 - self.nose_radius_width)
@@ -151,11 +173,14 @@ class Fuselage(GeomBase):
 
     @Attribute
     def nose_locations(self):
+        # Define the centre of the profile for each station along the nose cone
         return [translate(self.position,
                           # In the longitudinal direction
                           self.position.Vx,
                           i * self.total_length,
-                          # In the vertical direction
+                          # In the vertical direction, taking the middle
+                          # point of the profile, such that both the upper
+                          # line and the lower line of the nose cone are smooth
                           self.position.Vz,
                           ((self.nose_height + self.nose_radius_height / 2.
                             + 1. / self.relative_nose_length
@@ -171,27 +196,40 @@ class Fuselage(GeomBase):
 
     @Attribute
     def height_tail(self):
-        return [((1 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
-                  * (1 - self.tail_radius_height)
-                  * (i - (1 - self.relative_tail_length)) ** 2)) * self.height
+        # A smooth curve is provided for any length or height of the tail
+        # cone, based on the equation
+        # z = (1 - (1 / (1 - (1 - dx)))^2 * (1 - z1) * (x - (1 - dx))^2) * dz
+        # where dx is the tail length as a ratio of the fuselage length and
+        # dz is the height of the fuselage
+        return [(1 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
+                 * (1 - self.tail_radius_height)
+                 * (i - (1 - self.relative_tail_length)) ** 2) * self.height
                 for i in self.relative_locations if
                 i >= (1 - self.relative_tail_length)]
 
     @Attribute
     def width_tail(self):
-        return [((1 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
-                  * (1 - self.tail_radius_width)
-                  * (i - (1 - self.relative_tail_length)) ** 2)) * self.width
+        # A smooth curve is provided for any length or width of the tail
+        # cone, based on the equation
+        # y = (1 - (1 / (1 - (1 - dx)))^2 * (1 - y1) * (x - (1 - dx))^2) * dy
+        # where dx is the nose length as a ratio of the fuselage length and
+        # dy is the width of the fuselage
+        return [(1 - (1 / (1 - (1 - self.relative_tail_length))) ** 2
+                 * (1 - self.tail_radius_width)
+                 * (i - (1 - self.relative_tail_length)) ** 2) * self.width
                 for i in self.relative_locations if
                 i >= (1 - self.relative_tail_length)]
 
     @Attribute
     def tail_locations(self):
+        # Define the centre of the profile for each station along the tail cone
         return [translate(self.position,
                           # In the longitudinal direction
                           self.position.Vx,
                           i * self.total_length,
-                          # In the vertical direction
+                          # In the vertical direction, taking the middle
+                          # point of the profile, such that both the upper
+                          # line and the lower line of the nose cone are smooth
                           self.position.Vz,
                           ((0.5 -
                             (1 / (1 - (1 - self.relative_tail_length))) ** 2
@@ -201,18 +239,6 @@ class Fuselage(GeomBase):
                           * self.height)
                 for i in self.relative_locations if
                 i >= (1 - self.relative_tail_length)]
-
-    # Doors
-
-    # @Attribute
-    # def right_doors(self):
-    #     return (self.doors[index] if index % 2 == 1 else None for
-    #             index in range(len(self.door_profile)))
-    #
-    # @Attribute
-    # def left_doors(self):
-    #     return (self.doors[index] if index % 2 == 0 else None for
-    #             index in range(len(self.door_profile)))
 
     # -------------------------------------------------------------------------
     # PARTS
@@ -261,6 +287,9 @@ class Fuselage(GeomBase):
                             radius=min(self.width_tail[child.index],
                                        self.height_tail[child.index]) / 3)
 
+    # fuselage_nose_cone, fuselage_cabin and fuselage_tail_cone create the
+    # shapes of the nose cone, central cabin and tail cone, respectively
+
     @Part(in_tree=False)
     def fuselage_nose_cone(self):
         return LoftedSolid(profiles=self.nose_profiles)
@@ -274,6 +303,9 @@ class Fuselage(GeomBase):
     def fuselage_tail_cone(self):
         return LoftedSolid(profiles=self.tail_profiles)
 
+    # The fuselage_shape part combines the nose cone, cabin and tail cone
+    # into one part
+
     @Part
     def fuselage_shape(self):
         return Compound(built_from=[self.fuselage_nose_cone,
@@ -282,7 +314,8 @@ class Fuselage(GeomBase):
                         color=self.primary_colour)
 
     # Door parts: the door_profile provides the shape of the door,
-    # while doors provides the projected shape on the fuselage
+    # while left_doors and right_doors provide the projected shapes on the
+    # fuselage
 
     @Part(in_tree=False)
     def door_profile(self):

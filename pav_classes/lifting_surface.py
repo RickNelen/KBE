@@ -1,8 +1,18 @@
+# -----------------------------------------------------------------------------
+# IMPORTS
+# -----------------------------------------------------------------------------
+
 from math import radians, tan
 from parapy.geom import *
 from parapy.core import *
+from .functions import *
 import kbeutils.avl as avl
 from .airfoil import Airfoil
+
+
+# -----------------------------------------------------------------------------
+# LIFTING SURFACE CLASS
+# -----------------------------------------------------------------------------
 
 
 class LiftingSurface(GeomBase):
@@ -15,7 +25,10 @@ class LiftingSurface(GeomBase):
 
     # Number of sections along the span for which the profiles are defined
     number_of_profiles = Input(4)
-    airfoils = Input(['4415', 'whitcomb', '4415', '4405'])
+    airfoils = Input(['4415', '4415', '4405', 'whitcomb'])
+
+    # Prevent warnings from popping up until the design is converged
+    hide_warnings = Input(False)
 
     # Define if the wing shall be mirrored
     is_mirrored = Input(True)
@@ -64,44 +77,71 @@ class LiftingSurface(GeomBase):
     # ATTRIBUTES
     # -------------------------------------------------------------------------
 
-    # Compute mean aerodynamic chord
+    @Attribute
+    def profile_shape(self):
+        # Although the program can deal with the number of defined airfoils
+        # not being equal to the number of profiles, the user should be made
+        # aware of this incompatibility through a warning
+        if len(self.airfoils) == int(self.number_of_profiles):
+            return self.airfoils
+        elif len(self.airfoils) < self.number_of_profiles:
+            message = 'The number of airfoils that is provided is lower than' \
+                      ' the number of sections at which these should ' \
+                      'be defined. The latest defined airfoil is used for ' \
+                      'all sections further outboard. Please adjust this in ' \
+                      'the part {}.'.format(self.name)
+            generate_warning('Warning: shape adjusted', message)
+            return self.airfoils
+        else:
+            message = 'The number of airfoils that is provided is larger ' \
+                      'than the number of sections at which these should ' \
+                      'be defined. Only those airfoils that are assigned to ' \
+                      'a section are used, the remainder is ignored. Please ' \
+                      'adjust this in the part {}.'.format(self.name)
+            generate_warning('Warning: shape adjusted', message)
+            return self.airfoils
+
     @Attribute
     def mean_aerodynamic_chord(self):
+        # Compute the mean aerodynamic chord
         return (2. / 3 * self.root_chord
                 * (1 + self.taper_ratio + self.taper_ratio ** 2)
                 / (1 + self.taper_ratio))
 
     @Attribute
+    # Compute the y-coordinate of the mean aerodynamic chord
     def lateral_position_of_mean_aerodynamic_chord(self):
         return (self.span / 6
                 * (self.root_chord + 2 * self.tip_chord)
                 / (self.root_chord + self.tip_chord))
 
-    # Compute surface area from span and aspect ratio
     @Attribute
     def surface_area(self):
+        # Compute surface area from span and aspect ratio
         return self.span ** 2 / self.aspect_ratio
 
     @Attribute
     def root_chord(self):
+        # Compute the root chord of a trapezoidal wing
         return 2. * self.surface_area / (self.span * (1 + self.taper_ratio))
 
     @Attribute
     def tip_chord(self):
+        # Compute the tip chord from the root chord and taper ratio
         return self.root_chord * self.taper_ratio
 
-    # Compute the 'regular' chord lengths of a trapezoidal wing based on
-    # span-wise location
     @Attribute
     def profile_chords(self):
+        # Compute the 'regular' chord lengths of a trapezoidal wing based on
+        # span-wise location
         return [self.root_chord - (self.root_chord - self.tip_chord) * eta
                 for eta in self.span_fraction_of_profiles]
 
-    # Interpolate thickness factors at root and tip for all sections
     @Attribute
     def profile_thickness_factor(self):
-        return [self.thickness_factor_root - (
-                self.thickness_factor_root - self.thickness_factor_tip) * eta
+        # Interpolate thickness factors at root and tip for all sections
+        return [self.thickness_factor_root - eta
+                * (self.thickness_factor_root - self.thickness_factor_tip)
                 for eta in self.span_fraction_of_profiles]
 
     @Attribute
@@ -152,19 +192,21 @@ class LiftingSurface(GeomBase):
         # The total number of profiles that should be defined
         numbers = [number for number in range(self.number_of_profiles)]
         # Generate a list with the length of the provided number of airfoils
-        name = len(self.airfoils) - 1
+        name = len(self.profile_shape) - 1
         # If an insufficient number of profiles is defined by name, then just
         # use the latest profile for the remainder
-        return [self.airfoils[name] if number > name else self.airfoils[
-            number] for number in numbers]
-
-    # -------------------------
-    # TO DO: ADD WARNING THAT THE USER SHOULD ADD MORE PROFILES?
-    # -------------------
+        return [self.profile_shape[name] if number > name
+                else self.profile_shape[number] for number in numbers]
 
     # -------------------------------------------------------------------------
     # PARTS
     # -------------------------------------------------------------------------
+
+    # profiles returns the airfoils at the various sections along the
+    # surface; surface itself returns the lofted shape of the lifting
+    # surface; if a wing is considered and the shape should be mirrored,
+    # mirrored provides the other half; avl_surface generates the surface
+    # used in the AVL analysis
 
     @Part
     def profiles(self):
@@ -186,12 +228,11 @@ class LiftingSurface(GeomBase):
     @Part
     def mirrored(self):
         return MirroredShape(quantify=self.number_of_profiles - 1,
-                               shape_in=
-                               self.surface.faces[child.index],
-                               reference_point=self.position.point,
-                               vector1=self.position.Vx,
-                               vector2=self.position.Vz,
-                               suppress=not self.is_mirrored)
+                             shape_in=self.surface.faces[child.index],
+                             reference_point=self.position.point,
+                             vector1=self.position.Vx,
+                             vector2=self.position.Vz,
+                             suppress=not self.is_mirrored)
 
     @Part
     def avl_surface(self):

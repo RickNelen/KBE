@@ -206,9 +206,10 @@ class PAV(GeomBase):
 
     @Input
     def cruise_altitude_in_feet(self):
-        # A default cruise altitude of 10,000 ft is provided, but the user
+        # A default cruise altitude of 10,000 feet is provided, but the user
         # may adjust it if desired. For the validity of the design,
-        # it is recommended to keep it well below 20,000 ft.
+        # it is recommended to keep it below 15,000 feet (otherwise, it will
+        # be reduced to 15,000 feet anyway)
         return 10e3
 
     @Input
@@ -297,7 +298,7 @@ class PAV(GeomBase):
         # it does not make much sense and the range is set back to 500 km
         elif intended_range >= 500:
             message = 'This range is too high for our PAV. ' \
-                      'The range will be set to 300 ' \
+                      'The range will be set to 500 ' \
                       'km'
             if self.hide_warnings is False:
                 generate_warning('Warning: value changed', message)
@@ -343,8 +344,24 @@ class PAV(GeomBase):
 
     @Attribute
     def cruise_altitude(self):
-        # Convert the input altitude in feet to metres
-        return self.cruise_altitude_in_feet * 0.3048
+        # The maximum cruise altitude is 15,000 feet; if the user sets a
+        # higher value, this is reduced to 15,000
+        if self.cruise_altitude_in_feet > 15e3:
+            # Provide a warning telling that the altitude is changed
+            message = 'The cruise altitude is set too high. Please remember ' \
+                      'that the PAV is meant for urban area transportation. ' \
+                      'The cruise altitude is therefore reduced to 15,' \
+                      '000 ft.'
+            if self.hide_warnings is False:
+                generate_warning('Warning: value changed', message)
+            # Convert the 15,000 feet to metres
+            return 15e3 * FT_TO_M
+
+        # If the user provides an input altitude lower than 15,000 feet,
+        # this is used directly
+        else:
+            # Convert the input altitude in feet to metres
+            return self.cruise_altitude_in_feet * FT_TO_M
 
     @Attribute
     def cruise_temperature(self):
@@ -464,23 +481,29 @@ class PAV(GeomBase):
         skid = [self.skids[index].skid
                 for index in range(len(self.skid_locations))]
         right_front_connection = self.right_front_connection
-        wheels = [self.left_wheels[index].wheel
-                  for index in range(len(self.wheel_locations))]
+        if self.wheels_included is True:
+            wheels = [self.left_wheels[index].wheel
+                      for index in range(len(self.wheel_locations))]
 
         # Return a dictionary with the components (as the payload and
         # battery are not included in the model as parts, they include a
-        # value).
-        return {'main_wing': right_wing,
-                'horizontal_tail': right_horizontal_tail,
-                'vertical_tail': right_vertical_tail,
-                'wheels': wheels + wheels,
-                'fuselage': fuselage,
-                'skids': skid,
-                'front_connection': right_front_connection,
-                'propeller': propeller,
-                'vtol': vtol,
-                'payload': 0,
-                'battery': 0}
+        # value). Only if the client wants to have wheels on the vehicle,
+        # these are included
+        basis = {'main_wing': right_wing,
+                 'horizontal_tail': right_horizontal_tail,
+                 'vertical_tail': right_vertical_tail,
+                 'fuselage': fuselage,
+                 'skids': skid,
+                 'front_connection': right_front_connection,
+                 'propeller': propeller,
+                 'vtol': vtol,
+                 'payload': 0,
+                 'battery': 0}
+        if self.wheels_included is True:
+            result = {**basis, **{'wheels': wheels + wheels}}
+            return result
+        else:
+            return basis
 
     @Attribute
     def center_of_gravity_of_components(self):
@@ -792,7 +815,7 @@ class PAV(GeomBase):
     def main_wing(self):
         return LiftingSurface(name='main_wing',
                               number_of_profiles=4,
-                              airfoils=['24018', '24015', '24012', '24010'],
+                              airfoils=['24018', '24015', '24012', 'whitcomb'],
                               is_mirrored=True,
                               span=self.wing_span,
                               aspect_ratio=self.wing_aspect_ratio,
@@ -1089,12 +1112,16 @@ class PAV(GeomBase):
     @Attribute
     def horizontal_tail_longitudinal_position(self):
         # The horizontal tail is positioned such that it stays in the
-        # correct relative location with respect to the vertical tail
+        # correct relative location with respect to the vertical tail close
+        # to the top of the fuselage
         return (self.vertical_tail_root_location
+                # Account for sweep of the vertical tail
                 + tan(radians(self.vertical_tail_sweep))
-                * self.vertical_tail_span
-                - self.vertical_tail_root_chord / 4
-                * self.vertical_tail_taper_ratio)
+                * self.cabin_height
+                # Move the trailing edge of the tip of the horizontal tail
+                # to the trailing edge of the vertical tail at this height
+                + self.vertical_tail_root_chord * 3 / 4
+                * self.vertical_tail_taper_ratio - 0.5)
 
     @Attribute
     def horizontal_tail_vertical_position(self):
@@ -1112,13 +1139,18 @@ class PAV(GeomBase):
         relative_tail_arm = (self.tail_arm
                              / self.main_wing.mean_aerodynamic_chord)
 
-        # If the ideal height is low enough, it is used; else,
-        # the horizontal tail is placed lower to maintain effectiveness
+        # If the ideal height is low enough and below the top of the fuselage,
+        # it is used; else, the horizontal tail is placed lower to maintain
+        # effectiveness
         return (intended_height
-                if height_relative_to_wing / relative_tail_arm < 1 / 7
-                else relative_tail_arm / 8
-                     * self.main_wing.mean_aerodynamic_chord
-                     + self.vertical_wing_position)
+                if (height_relative_to_wing / relative_tail_arm < 1 / 7 and
+                    intended_height < self.cabin_height
+                    * (self.fuselage.tail_height + 0.05))
+                else min(relative_tail_arm / 8
+                         * self.main_wing.mean_aerodynamic_chord
+                         + self.vertical_wing_position,
+                         self.cabin_height
+                         * (self.fuselage.tail_height + 0.05)))
 
     # The horizontal tail parts, using the attributes above; the part
     # horizontal_tail is used as a reference; right_horizontal_tail and
@@ -1337,7 +1369,8 @@ class PAV(GeomBase):
         return LiftingSurface(name='vertical_tails',
                               quantify=len(self.skid_locations),
                               number_of_profiles=2,
-                              airfoils=[self.vertical_skid_profile],
+                              airfoils=[self.vertical_skid_profile,
+                                        self.vertical_skid_profile],
                               is_mirrored=False,
                               # Connect the skid to the horizontal tail
                               span=self.vertical_tail_span,
@@ -1541,7 +1574,8 @@ class PAV(GeomBase):
     def right_front_connection_reference(self):
         return LiftingSurface(name='front_connections',
                               number_of_profiles=2,
-                              airfoils=[self.vertical_skid_profile],
+                              airfoils=[self.vertical_skid_profile,
+                                        self.vertical_skid_profile],
                               is_mirrored=False,
                               span=self.front_connection_span,
                               aspect_ratio=(self.front_connection_span
@@ -1727,7 +1761,7 @@ class PAV(GeomBase):
                              / self.thrust_per_propeller[1] / 2))
         # Compute how many propellers would fit on the wing
         allowed = ((self.wing_span - self.cabin_width
-                   - self.propeller_radii[1])
+                    - self.propeller_radii[1])
                    / (2 * self.propeller_radii[1]
                       * self.prop_separation_factor))
 

@@ -1,9 +1,15 @@
+# -----------------------------------------------------------------------------
+# IMPORTS
+# -----------------------------------------------------------------------------
+
 import os.path
-from fpdf import FPDF
-from datetime import date
 from math import *
 from iterator import Iterator
 from pdf_generator import pdf_creator
+
+# -----------------------------------------------------------------------------
+# PATHS
+# -----------------------------------------------------------------------------
 
 _module_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -36,7 +42,7 @@ with open(INPUT_FILE, encoding="Latin-1") as f:
     options = ['yes', 'Yes', 'no', 'No']
     # Return the choice True or False for wheels
     wheels_choice = (True if contents[17] == options[0]
-                             or contents[17] == options[1] else False)
+                     or contents[17] == options[1] else False)
 
 # -----------------------------------------------------------------------------
 # Run the KBE app
@@ -68,16 +74,17 @@ if __name__ == '__main__':
 
     # display(pav.new_aircraft.analysis)
 
-# -----------------------------------------------------------------------------
-# Generate a .stp output
-# -----------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------
+    # Generate a .stp output
+    # -----------------------------------------------------------------------------
 
     pav.step_part.write()
 
-# -----------------------------------------------------------------------------
-# Get all the parameters to generate a pdf output
-# -----------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------
+    # Get all the parameters to generate a pdf output
+    # -----------------------------------------------------------------------------
 
+    # Obtain the required inputs to generate the pdf
     n_passengers = str(pav.n_passengers)
     baggage = format(pav.n_passengers * pav.quality_choice * 15, '.0f')
     range = format(pav.range_in_km, '.0f')
@@ -90,5 +97,6 @@ if __name__ == '__main__':
     prim_col = pav.primary_colour.capitalize()
     sec_col = pav.secondary_colour.capitalize()
 
+    # Create the pdf using the separate function pdf_creator
     pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
                 quality, wheels, span, length, prim_col, sec_col, FILENAME)

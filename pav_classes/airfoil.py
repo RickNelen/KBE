@@ -19,11 +19,23 @@ AIRFOIL_DIR = os.path.join(_module_dir, 'airfoils', '')
 
 
 class Airfoil(GeomBase):
+    # -------------------------------------------------------------------------
+    # INPUTS
+    # -------------------------------------------------------------------------
+
+    # Get the chord length
     chord = Input(1.)
+    # Get the airfoil name
     airfoil_name = Input("whitcomb")
+    # Get the thickness factor
     thickness_factor = Input(1.)
+    # Get modeling tolerances for visualisation
     mesh_deflection = Input(0.00001)
     tolerance = 0.00001
+
+    # -------------------------------------------------------------------------
+    # ATTRIBUTES
+    # -------------------------------------------------------------------------
 
     @Attribute
     def points(self):
@@ -47,6 +59,10 @@ class Airfoil(GeomBase):
                     float(z)))
         # A list with coordinates is returned
         return point_lst
+
+    # -------------------------------------------------------------------------
+    # PARTS
+    # -------------------------------------------------------------------------
 
     @Part(in_tree=False)
     def airfoil(self):
