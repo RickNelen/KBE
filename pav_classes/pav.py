@@ -223,8 +223,8 @@ class PAV(GeomBase):
         # This input is used to estimate the size of the wing and other
         # components and is updated in iterations. fr and fv are fractions
         # to correct for changing range or velocity
-        fr = 1.4 + (self.range - 100) * 0.0025
-        fv = 1.4 + (self.velocity - 100) * 0.0025
+        fr = 1.25 + self.range * 0.0015
+        fv = 2.2 - self.velocity * 0.0015
 
         # Return the MTOW in Newtons, based on the payload weight
         return 3.5 * fr * fv * (self.number_of_passengers *
@@ -275,6 +275,12 @@ class PAV(GeomBase):
             if self.hide_warnings is False:
                 generate_warning('Warning: value changed', message)
             return 0.6 * self.cruise_speed_of_sound
+        elif self.cruise_velocity < 400:
+            message = 'The cruise velocity is set too low. The cruise' \
+                      'velocity will be set to 400 km/h.'
+            if self.hide_warnings is False:
+                generate_warning('Warning: value changed', message)
+            return 400 / 3.6
         else:
             return velocity
 
@@ -294,17 +300,17 @@ class PAV(GeomBase):
                 generate_warning('Warning: value changed', message)
             return intended_range / 10
 
-        # If the range is over 500 km but lower than 1000 km, or over 3000 km,
-        # it does not make much sense and the range is set back to 500 km
-        elif intended_range >= 500:
+        # If the range is over 400 km but lower than 1000 km, or over 3000 km,
+        # it does not make much sense and the range is set back to 400 km
+        elif intended_range >= 400:
             message = 'This range is too high for our PAV. ' \
-                      'The range will be set to 500 ' \
+                      'The range will be set to 400 ' \
                       'km'
             if self.hide_warnings is False:
                 generate_warning('Warning: value changed', message)
-            return 500
+            return 400
 
-        # In other cases, i.e. when the range is below 500 km, this is valid
+        # In other cases, i.e. when the range is below 400 km, this is valid
         # and returned directly
         else:
             return intended_range

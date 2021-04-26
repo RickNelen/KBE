@@ -10,6 +10,7 @@ Range in km:			200.0
 Maximum span in m:		12.4
 Quality level: 			2
 Wheels:				yes
-Cruise velocity in km/h:	300
+Cruise velocity in km/h:	400
 Primary colour:			linen
 Secondary colour:	 	deepskyblue
+
