@@ -223,8 +223,8 @@ class PAV(GeomBase):
         # This input is used to estimate the size of the wing and other
         # components and is updated in iterations. fr and fv are fractions
         # to correct for changing range or velocity
-        fr = 1.5 + (self.range - 100) * 1e3 * 0.0025 / 1e3
-        fv = 1.5 + (self.velocity - 100) * 0.0025
+        fr = 1.4 + (self.range - 100) * 0.0025
+        fv = 1.4 + (self.velocity - 100) * 0.0025
 
         # Return the MTOW in Newtons, based on the payload weight
         return 3.5 * fr * fv * (self.number_of_passengers *

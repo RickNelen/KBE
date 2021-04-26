@@ -1,14 +1,15 @@
-# PAV Configurator: input file
+PAV Configurator: input file
 
-# Please specify how you would like your new PAV to perform. Please remember that your experience is our greatest good, but that we are no wizzards.
+Welcome to your personal Personal Aerial Vehicle configurator. Here you can create your very own PAV.
+Please specify how you would like your new PAV to perform. Please remember that your experience is our greatest good, but that we are no wizards.
  
-Please adhere to the units given below. For quality level, provide 1 for economy class or 2 for business class. If you would like to have wheels mounted to the skids, please type 'yes' after Wheels. If not, please write 'no'. For the primary and secondary colours, please provide the name of the colour you wish.
+Please adhere to the units given below. For quality level, provide 1 for economy class or 2 for business class. If you would like to have wheels mounted to the skids, please type 'yes' after Wheels. If not, please write 'no'. For the primary and secondary colours, please provide the name of the colour you wish. We deliver our PAVs in the colours as provided in the colour palet, which can be found in the same folder as this input file.
 
-Number of passengers: 	3.4
-Range in km:		280.6
-Maximum span in m:		11.6
-Quality level: 2
+Number of passengers: 		3
+Range in km:			200.0
+Maximum span in m:		12.4
+Quality level: 			2
 Wheels:				yes
-Cruise velocity in km/h:	400
-Primary colour:		white
-Secondary colour:	 red
+Cruise velocity in km/h:	300
+Primary colour:			linen
+Secondary colour:	 	deepskyblue

@@ -52,6 +52,7 @@ if __name__ == '__main__':
     from parapy.gui import display
 
     pav = Iterator(label='PAV',
+                   iterate=True,
                    n_passengers=passengers,
                    range_in_km=range_in_km,
                    max_span=max_span,
@@ -63,7 +64,9 @@ if __name__ == '__main__':
 
     # As the client is assumed to be a non-expert, they are not provided
     # with the AVL analysis that is being run behind the scenes. They get
-    # the GUI as clean as possible
+    # the GUI as clean as possible. If the client does not need to see the
+    # vehicle at all, the following line can be commented out.
+
     display(pav)
 
     # However, if required, one of the following lines can be uncommented to

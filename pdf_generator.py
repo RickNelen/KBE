@@ -5,6 +5,7 @@
 from fpdf import FPDF
 from datetime import date
 
+
 # -----------------------------------------------------------------------------
 # DEFINITION TO DEFINE CONTENT OF PDF
 # -----------------------------------------------------------------------------
@@ -12,7 +13,6 @@ from datetime import date
 
 def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
                 quality, wheels, span, length, prim_col, sec_col, filename):
-
     # Provide the characteristics of the vehicle
     char_names = ['Number of passengers: \n', 'Total baggage allowance: \n',
                   'Maximum range: \n', 'Cruise velocity: \n',
@@ -30,13 +30,13 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
 
     # Generate prices: a base price plus additional add-ons depending on the
     # wishes of the client
-    base_price = ((float(span) + float(length) + 5 * float(n_passengers)) * 200
-                  + (float(range) + float(velocity)) * 50) + 7500
+    base_price = ((float(span) + float(length) + 5 * float(n_passengers)) * 500
+                  + (float(range) + float(velocity)) * 200) + 15000
     quality_price = (0 if quality == 'Economy'
-                     else 1000 * float(n_passengers))
-    wheel_price = 3000
-    primary_price = 0 if prim_col == 'white' else 500
-    secondary_price = 0 if sec_col == 'red' else 250
+                     else 10e3 * float(n_passengers))
+    wheel_price = 5000
+    primary_price = 0 if prim_col == 'white' else 1500
+    secondary_price = 0 if sec_col == 'red' else 500
 
     # Compute the total price
     total_price = (base_price + quality_price + wheel_price + primary_price
@@ -110,10 +110,12 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
                       self.pdf_w - self.rect_inner_margin,
                       self.start_of_finance *
                       self.pdf_h - self.line_height)
-            self.line(self.rect_inner_margin, (self.start_of_finance + 0.05) *
-                      self.pdf_h + self.line_height * len(cost_names),
-                      self.pdf_w / 2, (self.start_of_finance + 0.05) *
-                      self.pdf_h + self.line_height * len(cost_names))
+            self.line(self.pdf_w * 0.1 + self.rect_inner_margin,
+                      (self.start_of_finance + 0.05) * self.pdf_h
+                      + self.line_height * len(cost_names),
+                      self.pdf_w * 0.9 - self.rect_inner_margin,
+                      (self.start_of_finance + 0.05)
+                      * self.pdf_h + self.line_height * len(cost_names))
             self.line(self.pdf_w * 0.225, self.pdf_h * 0.9 + self.line_height,
                       self.pdf_w * 0.475, self.pdf_h * 0.9 + self.line_height)
             self.line(self.pdf_w * 0.70, self.pdf_h * 0.9 + self.line_height,
@@ -128,7 +130,7 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
 
         # Generate the block related to the client
         def left_block(self):
-            self.set_xy(self.rect_inner_margin,
+            self.set_xy(self.rect_inner_margin + 0.1 * self.pdf_w,
                         self.start_of_client * self.pdf_h)
             self.set_font('Arial', size=11)
             self.multi_cell(w=self.pdf_w / 2, h=self.line_height, align='L',
@@ -136,10 +138,11 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
 
         # Generate the block related to the location and date
         def right_block(self):
-            self.set_xy(self.pdf_w * 0.7, self.start_of_client * self.pdf_h)
+            self.set_xy(self.pdf_w * 0.6 - self.rect_inner_margin,
+                        self.start_of_client * self.pdf_h)
             self.set_font('Arial', size=11)
-            self.multi_cell(w=self.pdf_w * 0.3 - self.rect_inner_margin,
-                            h=self.line_height, align='L',
+            self.multi_cell(w=self.pdf_w * 0.3,
+                            h=self.line_height, align='R',
                             txt=self.right_text[0] + '\n' + self.right_text[1])
 
         # Generate the header introducing the vehicle characteristics
@@ -151,8 +154,8 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
 
         # Generate the list of characteristics
         def geom_names(self):
-            self.set_xy(self.rect_inner_margin, (self.start_of_geom + 0.05) *
-                        self.pdf_h)
+            self.set_xy(self.rect_inner_margin + 0.1 * self.pdf_w,
+                        (self.start_of_geom + 0.05) * self.pdf_h)
             self.set_font('Arial', size=11)
             self.multi_cell(w=self.width_of_names, h=self.line_height,
                             align='L',
@@ -161,7 +164,8 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
         # Generate the list of values and units corresponding to the
         # characteristics
         def geom_values(self):
-            self.set_xy(self.pdf_w / 2 - self.width_of_values,
+            self.set_xy(self.pdf_w * 0.9 - self.rect_inner_margin
+                        - self.width_of_values,
                         (self.start_of_geom + 0.05) * self.pdf_h)
             self.set_font('Arial', size=11)
             self.multi_cell(w=self.width_of_values, h=self.line_height,
@@ -177,9 +181,8 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
 
         # Generate the list of cost items
         def price_names(self):
-            self.set_xy(self.rect_inner_margin,
-                        (self.start_of_finance + 0.05) *
-                        self.pdf_h)
+            self.set_xy(self.rect_inner_margin + 0.1 * self.pdf_w,
+                        (self.start_of_finance + 0.05) * self.pdf_h)
             self.set_font('Arial', size=11)
             self.multi_cell(w=self.width_of_names, h=self.line_height,
                             align='L',
@@ -187,7 +190,8 @@ def pdf_creator(n_passengers, baggage, range, velocity, battery_energy,
 
         # Generate the list of prices corresponding to the cost items
         def price_values(self):
-            self.set_xy(self.pdf_w / 2 - self.width_of_values,
+            self.set_xy(self.pdf_w * 0.9 - self.rect_inner_margin
+                        - self.width_of_values,
                         (self.start_of_finance + 0.05) * self.pdf_h)
             self.set_font('Arial', size=11)
             self.multi_cell(w=self.width_of_values, h=self.line_height,
